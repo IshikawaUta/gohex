@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=gohex
+Exec=gohex
+Icon=gohex
+Categories=Development;
+Terminal=false
+Keywords=wails
+Version=1.0
+StartupNotify=false

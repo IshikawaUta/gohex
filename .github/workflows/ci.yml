@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  WAILS_VERSION: v3.0.0-beta.27
+
+jobs:
+  test:
+    name: Test · vet · coverage · frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: WebView/GTK headers (cgo)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
+
+      - name: go mod tidy is clean
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: go vet + gofmt
+        run: |
+          go vet ./...
+          fmt="$(gofmt -l $(git ls-files '*.go'))"
+          if [ -n "$fmt" ]; then echo "gofmt needed:"; echo "$fmt"; exit 1; fi
+
+      - name: Go tests with coverage gate (≥80% project code)
+        run: |
+          go test ./internal/... ./pkg/... . -coverprofile=coverage.out
+          go tool cover -func=coverage.out | tee cover.txt
+          total="$(tail -1 cover.txt | awk '{gsub("%","",$NF); print $NF}')"
+          echo "Total coverage: ${total}%"
+          awk -v t="$total" 'BEGIN { exit !(t >= 80.0) }'
+
+      - name: Frontend type-check + production build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run check
+          npm run build
+
+      - name: Bindings are regenerated & committed
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
+          # Mirror build/Taskfile.yml generate:bindings (-ts TypeScript mode)
+          "$(go env GOPATH)/bin/wails3" generate bindings -clean=true -ts -i
+          git diff --exit-code frontend/bindings
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage.out
+            cover.txt
+
+  cross-compile:
+    name: Pure packages cross-compile (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: Build non-GUI packages
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build ./internal/... ./pkg/...
+
+  build:
+    name: GUI build (${{ matrix.name }})
+    needs: [test]
+    # Linux is the required gate; Windows/macOS builders are best-effort until
+    # their toolchains are proven stable in CI (see docs/release.md).
+    continue-on-error: ${{ matrix.best-effort }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-amd64
+            os: ubuntu-latest
+            artifact: bin/gohex
+            best-effort: false
+          - name: windows-amd64
+            os: windows-2022
+            artifact: bin/gohex.exe
+            best-effort: true
+          - name: macos-latest
+            os: macos-latest
+            artifact: bin/gohex
+            best-effort: true
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Linux dependencies (GTK/WebKit/Xvfb)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config xvfb
+
+      - name: Windows dependencies (MinGW-w64)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-pkg-config
+
+      - name: Install wails3
+        shell: bash
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
+
+      - name: Build production binary
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          wails3 build
+
+      - name: Smoke launch (Linux/Xvfb)
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a bash -c '
+            GOHEX_SKIP_DISCLAIMER=1 GOHEX_OPEN=testdata/sample.bin ./bin/gohex &
+            pid=$!
+            sleep 8
+            if kill -0 "$pid" 2>/dev/null; then
+              echo "smoke: process alive after 8s"
+              kill "$pid"; wait "$pid" 2>/dev/null || true
+            else
+              echo "smoke: process died"; exit 1
+            fi'
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: gohex-${{ matrix.name }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error

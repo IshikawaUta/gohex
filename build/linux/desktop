@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=GoHex
+Comment=Hex editor and digital forensic suite
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/gohex %u
+Terminal=false
+Type=Application
+Icon=gohex
+Categories=Utility;
+StartupWMClass=gohex
+
+ 

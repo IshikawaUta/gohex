@@ -1,0 +1,142 @@
+# GoHex user guide
+
+GoHex is a cross-platform hex editor with forensic-grade defaults: **read-only
+until you deliberately allow editing**, full undo/redo, hashing, and an audit
+log for casework.
+
+## Install & run
+
+```bash
+# Prerequisites: Go ≥ 1.25, Node.js ≥ 20, and WebView dev libraries
+#   Linux:   sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
+#   Windows: WebView2 Runtime + MinGW-w64 (CGO)
+#   macOS:   Xcode Command Line Tools
+
+git clone https://github.com/IshikawaUta/gohex && cd gohex
+
+# Development run
+npm --prefix frontend run build && go run .
+
+# Production binary (embeds the frontend)
+wails3 build          # → bin/gohex
+./bin/gohex
+```
+
+Open a file at launch:
+
+```bash
+./bin/gohex evidence.dd          # command-line argument
+GOHEX_OPEN=a.bin,b.bin ./bin/gohex   # comma-separated (used by tests/CI)
+```
+
+On first start an ethics disclaimer is shown; accept it once (stored locally).
+Tests/CI can pre-accept with `GOHEX_SKIP_DISCLAIMER=1`.
+
+## The window
+
+```
+┌ toolbar ────────────────────────────────────────────────────┐
+│ Open New Save SaveAs │ Undo Redo Find │ Encoding Theme Hash │ ⚙ ? │
+├ tab bar ────────────────────────────────────────────────────┤
+│ [sampleA.bin ✕] [+]                                          │
+├ find panel (Ctrl+F, optional) ───────────────────────────────┤
+├ hex grid ────────────────────────────────────────────────────┤
+│ 00000000  47 6F 48 65 78 …          GoHex …                 │
+├ status bar ──────────────────────────────────────────────────┤
+│ offset/goto field · selection · size · encoding              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- **Hex grid**: click a nibble to place the cursor; type `0`–`f` to overwrite
+  bytes (two nibbles per byte); drag to select; right-click for a context menu
+  (copy offset/hex/text, select all, delete selection).
+- **Goto**: press `Ctrl+G` or click the offset field in the status bar, type an
+  offset (`0x100`, `256`, …), press `Enter`.
+- **Tabs**: each open file is a tab. `+`/`Ctrl+N` creates an empty document;
+  `×` or middle-click closes a tab.
+
+## Editing & saving
+
+- Editing depends on the **profile** (⚙ → Profile):
+  - `readonly` — all modification attempts are rejected.
+  - `analyst` (default) — edit documents, save to new files.
+  - `recovery`, `examiner` — see [architecture.md](architecture.md).
+- `Ctrl+Z` / `Ctrl+Y` undo/redo (journal-backed; undoing back to the save
+  point marks the document clean).
+- `Ctrl+S` saves, `Ctrl+Shift+S` save-as. Dirty files show a dot in the tab
+  and title.
+- **Sandbox mode** (Preferences) simulates saves without touching the disk.
+- Physical-disk writes (stage 2+) require all of: explicit
+  `GOHEX_ALLOW_UNSAFE_WRITE=1`, a two-step confirmation, and an audit entry.
+
+## Search & replace
+
+`Ctrl+F` opens the find panel:
+
+- Modes: **text** (with `Aa` case toggle), **hex** (`4D 5A 90`), **regex**.
+- `Enter` / `Shift+Enter` find next/previous; `wrap` restarts at the edges.
+- ☰ finds all (up to 500 matches, shown as clickable chips).
+- Replace-all needs editing permission and asks for confirmation; the change
+  is undoable with `Ctrl+Z`.
+
+## Hashing
+
+Toolbar → **Hash…** computes a checksum of the active document; the result
+appears in the status bar (`SHA-256: …`). The list includes *file* hashes
+(sha256/sha512/sha1/md5/crc32/crc32c/blake3/xxhash64) and *selection* variants.
+
+## Preferences (⚙ or `Ctrl+,`)
+
+| Setting | Notes |
+|---|---|
+| Theme | light / dark (+ custom theme files) |
+| Language | English / Bahasa Indonesia |
+| Bytes per line | grid width (8/16/32/…) |
+| Offset radix | hex or decimal display |
+| Profile | editing policy, see above |
+| Sandbox mode | simulate saves, never write |
+
+Saved to `~/.config/gohex/config.json` (platform user-config dir).
+
+## Keyboard shortcuts (Stage 1)
+
+| Key | Action |
+|---|---|
+| `Ctrl+O` | Open file |
+| `Ctrl+N` | New document |
+| `Ctrl+S` / `Ctrl+Shift+S` | Save / Save as |
+| `Ctrl+Z` / `Ctrl+Y` | Undo / Redo |
+| `Ctrl+F` | Find panel |
+| `Ctrl+G` | Go to offset |
+| `Ctrl+A` | Select all |
+| `Ctrl+C` / `Ctrl+Shift+C` | Copy as hex / as text |
+| `Ctrl+,` | Preferences |
+| `Esc` | Close dialog or find panel; clear pending nibble |
+| Arrows / `Home` / `End` / `PgUp` / `PgDn` | Move cursor (grid focused) |
+| `Backspace` | Cancel a half-typed nibble |
+
+`Enter`/`Shift+Enter` inside the find field jump to next/previous match.
+The `shortcuts` map in `config.json` is reserved for the configurable keymap
+engine planned for stage 5.
+
+## Environment variables
+
+| Variable | Effect |
+|---|---|
+| `GOHEX_OPEN` | Comma-separated files to open at start |
+| `GOHEX_SKIP_DISCLAIMER=1` | Pre-accept the disclaimer (tests/CI) |
+| `GOHEX_THEME` / `GOHEX_LANG` / `GOHEX_PROFILE` | Override preferences |
+| `GOHEX_ALLOW_UNSAFE_WRITE=1` | Enable physical-disk write capability |
+| `GOHEX_UPDATE_CHECK=1` | Opt in to update checks (off by default) |
+
+## Audit log
+
+Casework actions are appended to `~/.config/gohex/audit.jsonl` (mode `0600`,
+one JSON object per line) — see [security.md](security.md).
+
+## Limits & notes
+
+- Files larger than 4 GB are supported (windowed reads, no full slurp).
+- Copy operations are capped at 16 MiB per selection.
+- Find-all returns at most 500 matches per query.
+- The CLI (`cmd/gohex-cli`) is on the roadmap (stage 5); Stage 1 is GUI-only.

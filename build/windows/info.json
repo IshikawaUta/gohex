@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.1.0"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "0.1.0",
+			"CompanyName": "GoHex Contributors",
+			"FileDescription": "Hex editor and digital forensic suite",
+			"LegalCopyright": "(c) 2026, GoHex Contributors",
+			"ProductName": "GoHex",
+			"Comments": "Open-source hex editor and digital forensics tool"
+		}
+	}
+}

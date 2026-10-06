@@ -1,0 +1,48 @@
+# Binaries
+/bin/
+/dist/
+/gohex
+/gohex-gui
+/gohex-cli
+/gohex-server
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Wails / frontend
+.task
+ui/node_modules/
+ui/dist/
+frontend/node_modules/
+frontend/dist/
+*.local.json
+
+# Test & profiling artifacts
+coverage.out
+coverage.html
+*.test
+*.prof
+pprof/
+fuzz-corpus/
+test/corpus/**/*.bin
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs & local state
+*.log
+/logs/
+.audit/
+
+# Signing & secrets — never commit
+*.pem
+*.pfx
+*.key
+*.cer
+.env
+.env.*
