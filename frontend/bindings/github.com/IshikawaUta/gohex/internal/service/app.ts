@@ -13,6 +13,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as config$0 from "../config/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as fs$0 from "../fs/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -113,6 +116,39 @@ export function Find(req: $models.FindRequest): $CancellablePromise<$models.Find
 }
 
 /**
+ * FsExport copies a file out of the image to dstPath, recording the SHA-256
+ * of the copy in the audit log (chain of custody). The destination must not
+ * exist: evidence exports are never silently overwritten.
+ */
+export function FsExport(path: string, offset: number, size: number, fsPath: string, dstPath: string): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(3913661751, path, offset, size, fsPath, dstPath);
+}
+
+/**
+ * FsList returns the entries of a directory inside the image. dir is an
+ * absolute slash-separated path ("/" for the root).
+ */
+export function FsList(path: string, offset: number, size: number, dir: string): $CancellablePromise<fs$0.Entry[] | null> {
+    return $Call.ByID(95552269, path, offset, size, dir);
+}
+
+/**
+ * FsRead returns up to length bytes of a file inside the image starting at
+ * off. length is clamped to the read window so a hostile request cannot
+ * exhaust memory.
+ */
+export function FsRead(path: string, offset: number, size: number, fsPath: string, off: number, length: number): $CancellablePromise<string | null> {
+    return $Call.ByID(3230318369, path, offset, size, fsPath, off, length);
+}
+
+/**
+ * FsStat returns the entry at fsPath inside the image.
+ */
+export function FsStat(path: string, offset: number, size: number, fsPath: string): $CancellablePromise<fs$0.Entry> {
+    return $Call.ByID(1387366339, path, offset, size, fsPath);
+}
+
+/**
  * Goto resolves an offset expression (hex/dec/relative/sector) against the
  * document and moves the cursor there.
  */
@@ -157,10 +193,53 @@ export function OpenFile(path: string): $CancellablePromise<$models.DocInfo> {
 }
 
 /**
+ * OpenImage opens a disk-image container (RAW, EWF/E01, VHD, QCOW2, VMDK,
+ * VHDX) as a read-only document, exactly like OpenFile but through the image
+ * decoder. Detection is magic-based, so the file name never matters.
+ */
+export function OpenImage(path: string): $CancellablePromise<$models.DocInfo> {
+    return $Call.ByID(2098202771, path);
+}
+
+/**
+ * OpenRange opens [offset, offset+size) of an image or raw disk as its own
+ * document — the usual way to hex-view a single partition. A size <= 0 runs
+ * to the end of the medium.
+ */
+export function OpenRange(path: string, offset: number, size: number): $CancellablePromise<$models.DocInfo> {
+    return $Call.ByID(3345496683, path, offset, size);
+}
+
+/**
+ * Partitions parses the partition table of an image or raw disk and probes
+ * the filesystem living in each partition. It opens nothing: evidence is
+ * only read, never written.
+ */
+export function Partitions(path: string): $CancellablePromise<$models.DiskLayout> {
+    return $Call.ByID(1498964341, path);
+}
+
+/**
  * Preferences returns a copy of the active configuration.
  */
 export function Preferences(): $CancellablePromise<config$0.Preferences> {
     return $Call.ByID(909651012);
+}
+
+/**
+ * ProbeFileSystem identifies the filesystem at [offset, offset+size) of an
+ * image. A size <= 0 runs to the end of the medium.
+ */
+export function ProbeFileSystem(path: string, offset: number, size: number): $CancellablePromise<$models.FileSystemInfo> {
+    return $Call.ByID(1806454455, path, offset, size);
+}
+
+/**
+ * ProbeImage reports the container format and virtual size of an image
+ * without opening a document.
+ */
+export function ProbeImage(path: string): $CancellablePromise<$models.ImageInfo> {
+    return $Call.ByID(297691229, path);
 }
 
 /**

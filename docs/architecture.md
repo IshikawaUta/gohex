@@ -1,8 +1,9 @@
 # GoHex architecture
 
 GoHex is a desktop hex editor and digital-forensic suite written in Go with a
-Wails v3 GUI (Svelte 5 frontend). This document describes the Stage 1 code that
-exists today, the boundaries that keep it safe, and how later stages plug in.
+Wails v3 GUI (Svelte 5 frontend). This document describes the Stage 1 and
+Stage 2 code that exists today, the boundaries that keep it safe, and how
+later stages plug in.
 
 ## Layer overview
 
@@ -11,11 +12,14 @@ exists today, the boundaries that keep it safe, and how later stages plug in.
 │ frontend/            Svelte 5 + TypeScript (Wails webview) │
 │   virtual hex grid · tabs · find panel · dialogs · i18n    │
 ├──────────────────── generated bindings ────────────────────┤
-│ internal/service     RPC façade (≈40 methods, events)      │
-│   documents, search, hashing, preferences, disclaimer      │
+│ internal/service     RPC façade (44 methods, events)        │
+│   documents, search, hashing, images, partitions, fs, ...  │
 ├────────────────────────────────────────────────────────────┤
 │ internal/hex         Document: journal, undo/redo, search  │
 │ internal/core        Sources: files, mmap, windowed reads  │
+│ internal/disk        MBR / EBR / GPT partition tables      │
+│ internal/image       image containers (raw, E01, VHD, ...) │
+│ internal/fs          read-only FAT/NTFS/ext/exFAT/ISO view │
 │ internal/encoding    text codecs, Intel-HEX, S-records     │
 │ internal/hash        sha*, md5, crc32/c, blake3, xxhash64  │
 │ internal/audit       append-only audit log (0600)          │
@@ -60,6 +64,37 @@ renders only visible rows (virtualized grid + overscan) and caches chunks per
 epoch; changing documents or versions invalidates the epoch. This is what lets
 Stage 1 open multi-gigabyte files with a small, flat memory footprint.
 
+### Image containers, partitions and filesystems
+
+`internal/image` turns a container file into the same read-only random-access
+range that a plain file provides, so every engine above it is format-agnostic:
+
+- **Detection is magic-based, never extension-based.** A `.img` that is really
+  an E01 opens as E01.
+- **Native readers** for raw and single-segment EWF/E01 (both byte orders are
+  auto-detected; chunks may be zlib-compressed or stored) and for Microsoft
+  VHD (fixed and dynamic; the dynamic sector bitmap ahead of every block is
+  honoured).
+- **Delegated formats** (QCOW2, VMDK, VHDX) are flattened to a temporary raw
+  file with `qemu-img convert`, which is removed on `Close`. These formats
+  require `qemu-img` on `PATH`; `Open` says so explicitly when it is missing.
+- HFS+/APFS and multi-segment/Ex01/L01 variants are deliberately out of scope
+  for Stage 2 and report *"not yet supported (roadmap stage 3)"* rather than
+  pretending to parse them.
+
+`internal/disk` parses MBR (including extended/EBR chains) and GPT into a
+`Table` with non-fatal warnings instead of hard failures, and `internal/fs`
+exposes a read-only `FS` (`List`/`Stat`/`ReadAt`) over FAT12/16/32, exFAT,
+NTFS, ext2/3/4 and ISO9660 — case-insensitive where the real filesystem is,
+case-sensitive where it is not.
+
+The service layers them into `ProbeImage`/`OpenImage`/`OpenRange`,
+`Partitions` and `ProbeFileSystem`/`FsList`/`FsStat`/`FsRead`/`FsExport`.
+Filesystem sessions are cached for the lifetime of the app (so directory
+listings do not re-parse the superblock) and released by `App.Close`.
+`FsExport` writes to a destination that must not already exist and records
+the SHA-256 of the copy in the audit log.
+
 ### Search
 
 `internal/hex` implements three pattern kinds (raw hex, text with case
@@ -103,12 +138,14 @@ re-render. The store is the only shared mutable state.
 | Stage | Scope | Packages added |
 |---|---|---|
 | 1 ✅ | Hex editor core + GUI shell | `core`, `hex`, `encoding`, `hash`, `audit`, `config`, `service` |
-| 2 | Disk & image editor (RAW/E01/VHD/VMDK/QCOW2), file-system parsers (FAT/NTFS/ext/exFAT/ISO/HFS/APFS) | `disk`, `image`, `fs` (scaffolded) |
+| 2 ◐ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs; GUI disk panel still to come. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
 | 3 | Recovery & carving, case management & reports, browser artifacts | `recovery`, `forensics`, `browser`, `dump` |
 | 4 | Memory viewer (read-only), crash-dump analyzer | `memory` |
 | 5 | Scripting, utilities, packaging, signing, configurable keymap engine | `script`, `template`, `update` |
 
-Placeholder directories exist for stages 2–5; they contain no code yet.
+Placeholder directories exist for stages 3–5; they contain no code yet. HFS+
+and APFS are intentionally deferred to stage 3: admitting a half-working
+parser would be worse than saying "not yet supported".
 Non-goal forever: anti-forensic features, credential extraction, stealth —
 see [legal.md](legal.md).
 

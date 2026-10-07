@@ -7,10 +7,14 @@ export {
 };
 
 export type {
+    DiskLayout,
     DocInfo,
     FileInfo,
+    FileSystemInfo,
     FindRequest,
     FindResponse,
+    ImageInfo,
+    PartitionInfo,
     SaveResult,
     StartupInfo,
     WindowData

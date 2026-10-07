@@ -12,6 +12,7 @@
   import Disclaimer from "./lib/dialogs/Disclaimer.svelte";
   import About from "./lib/dialogs/About.svelte";
   import Preferences from "./lib/dialogs/Preferences.svelte";
+  import Disk from "./lib/dialogs/Disk.svelte";
 
   let doc = $derived(store.active);
   let ready = $state(false);
@@ -85,9 +86,10 @@
 
   function onGlobalKey(e: KeyboardEvent): void {
     if (e.key === "Escape") {
-      if (store.showPrefs || store.showAbout) {
+      if (store.showPrefs || store.showAbout || store.showDisk) {
         store.showPrefs = false;
         store.showAbout = false;
+        store.showDisk = false;
         return;
       }
       if (store.findOpen) store.findOpen = false;
@@ -206,6 +208,9 @@
   {/if}
   {#if store.showPrefs}
     <Preferences />
+  {/if}
+  {#if store.showDisk}
+    <Disk />
   {/if}
 </div>
 

@@ -3,7 +3,25 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as disk$0 from "../disk/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as hex$0 from "../hex/models.js";
+
+/**
+ * DiskLayout is the parsed partition table of an image with a filesystem
+ * probed per partition.
+ */
+export interface DiskLayout {
+    /**
+     * none | mbr | gpt
+     */
+    "kind": string;
+    "diskGuid"?: string;
+    "mbrDiskSig"?: number;
+    "warnings"?: string[] | null;
+    "partitions": PartitionInfo[] | null;
+}
 
 /**
  * DocInfo is the JSON-serialisable snapshot of an open document.
@@ -38,6 +56,16 @@ export interface FileInfo {
     "mode": string;
     "modTime": string;
     "isDir": boolean;
+}
+
+/**
+ * FileSystemInfo describes a probed filesystem at a byte range.
+ */
+export interface FileSystemInfo {
+    "type": string;
+    "label": string;
+    "size": number;
+    "offset": number;
 }
 
 /**
@@ -76,6 +104,32 @@ export interface FindResponse {
     "matches": hex$0.Match[] | null;
     "count": number;
     "truncated": boolean;
+}
+
+/**
+ * ImageInfo describes a disk-image container without opening a tab.
+ */
+export interface ImageInfo {
+    "path": string;
+
+    /**
+     * raw | ewf | vhd | qcow2 | vmdk | vhdx
+     */
+    "format": string;
+    "size": number;
+}
+
+/**
+ * PartitionInfo is one partition plus what lives inside it.
+ */
+export interface PartitionInfo {
+    "partition": disk$0.Partition;
+
+    /**
+     * "ext4", "ntfs", ... ("" = none/unknown)
+     */
+    "filesystem"?: string;
+    "fsLabel"?: string;
 }
 
 /**

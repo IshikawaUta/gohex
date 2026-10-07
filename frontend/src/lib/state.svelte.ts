@@ -17,6 +17,7 @@ class Store {
   showDisclaimer = $state(false);
   showAbout = $state(false);
   showPrefs = $state(false);
+  showDisk = $state(false);
   findOpen = $state(false);
   pendingNibble = $state(-1);
   revealFn: ((off: number, selLen?: number) => void) | null = null;

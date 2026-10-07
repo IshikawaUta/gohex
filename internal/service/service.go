@@ -21,8 +21,10 @@ import (
 	"github.com/IshikawaUta/gohex/internal/config"
 	"github.com/IshikawaUta/gohex/internal/core"
 	encoding "github.com/IshikawaUta/gohex/internal/encoding" // package bincoding
+	"github.com/IshikawaUta/gohex/internal/fs"
 	"github.com/IshikawaUta/gohex/internal/hash"
 	"github.com/IshikawaUta/gohex/internal/hex"
+	"github.com/IshikawaUta/gohex/internal/image"
 	"github.com/IshikawaUta/gohex/pkg/version"
 )
 
@@ -123,6 +125,14 @@ type doc struct {
 	lastFind *hex.Pattern
 }
 
+// fsSession is an open, read-only view of a filesystem inside an image.
+// Sessions are cached so repeated directory listings do not re-parse the
+// superblock, and are released when the App closes.
+type fsSession struct {
+	r image.Reader
+	f fs.FS
+}
+
 // App is the bound API of GoHex. All methods are safe for concurrent use.
 type App struct {
 	mu      sync.Mutex
@@ -133,6 +143,7 @@ type App struct {
 	order   []int64
 	nextID  int64
 	emit    Emitter
+	fss     map[string]*fsSession
 
 	startupSkipDisclaimer bool
 	startupFiles          []string
@@ -170,6 +181,7 @@ func New(cfgPath string, emitter Emitter) (*App, error) {
 		cfgPath: cfgPath,
 		log:     log,
 		docs:    make(map[int64]*doc),
+		fss:     make(map[string]*fsSession),
 		emit:    emitter,
 	}, nil
 }
@@ -186,6 +198,10 @@ func (a *App) Close() error {
 	}
 	a.docs = nil
 	a.order = nil
+	for _, s := range a.fss {
+		s.r.Close()
+	}
+	a.fss = nil
 	if a.log != nil {
 		return a.log.Close()
 	}

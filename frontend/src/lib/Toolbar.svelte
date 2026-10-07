@@ -43,6 +43,10 @@
     {store.t("menu.file.saveAs")}
   </button>
   <span class="sep"></span>
+  <button class="tb" onclick={() => (store.showDisk = true)} title="Disk image browser">
+    Disk
+  </button>
+  <span class="sep"></span>
   <button
     class="tb"
     onclick={() => A.undo()}
