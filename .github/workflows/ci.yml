@@ -31,6 +31,21 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
 
+      # Fixture tooling: the disk/filesystem tests build their own images with
+      # mkfs.ext2/debugfs (e2fsprogs), mkfs.fat (dosfstools), mkntfs/ntfscp/
+      # ntfsls (ntfs-3g), mkfs.exfat (exfatprogs) and genisoimage. They t.Skip
+      # when a tool is missing, which silently drops project coverage below the
+      # 80% gate below — so install them explicitly rather than relying on what
+      # the runner image happens to ship.
+      - name: Filesystem fixture tooling (coverage depends on it)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            e2fsprogs dosfstools ntfs-3g exfatprogs genisoimage
+          for t in debugfs mkfs.ext2 mkfs.fat mkntfs ntfscp ntfsls mkfs.exfat genisoimage; do
+            command -v "$t" >/dev/null || { echo "missing required fixture tool: $t"; exit 1; }
+          done
+
       - name: go mod tidy is clean
         run: |
           go mod tidy
