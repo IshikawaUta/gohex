@@ -1,8 +1,8 @@
 # GoHex architecture
 
 GoHex is a desktop hex editor and digital-forensic suite written in Go with a
-Wails v3 GUI (Svelte 5 frontend). This document describes the Stage 1 and
-Stage 2 code that exists today, the boundaries that keep it safe, and how
+Wails v3 GUI (Svelte 5 frontend). This document describes the Stage 1 through
+Stage 3 code that exists today, the boundaries that keep it safe, and how
 later stages plug in.
 
 ## Layer overview
@@ -12,7 +12,7 @@ later stages plug in.
 │ frontend/            Svelte 5 + TypeScript (Wails webview) │
 │   virtual hex grid · tabs · find panel · dialogs · i18n    │
 ├──────────────────── generated bindings ────────────────────┤
-│ internal/service     RPC façade (44 methods, events)        │
+│ internal/service     RPC façade (47 methods, events)        │
 │   documents, search, hashing, images, partitions, fs, ...  │
 ├────────────────────────────────────────────────────────────┤
 │ internal/hex         Document: journal, undo/redo, search  │
@@ -20,6 +20,7 @@ later stages plug in.
 │ internal/disk        MBR / EBR / GPT partition tables      │
 │ internal/image       image containers (raw, E01, VHD, ...) │
 │ internal/fs          read-only FAT/NTFS/ext/exFAT/ISO view │
+│ internal/recovery    signature-based file carving          │
 │ internal/encoding    text codecs, Intel-HEX, S-records     │
 │ internal/hash        sha*, md5, crc32/c, blake3, xxhash64  │
 │ internal/audit       append-only audit log (0600)          │
@@ -101,6 +102,36 @@ the SHA-256 of the copy in the audit log.
 folding, Go regexp) over a `Stream` abstraction, with forward/backward/wrapped
 find and a bounded find-all (max 500 matches sent to the UI per query).
 
+### Recovery and carving
+
+`internal/recovery` finds files that no longer have directory entries. A run is
+single-pass and read-only: the source is walked in 4 MiB windows, every
+registered header is matched with `bytes.Index`, and candidates are queued in
+offset order until their extent is known.
+
+- **Extent is proven, never guessed.** Footer formats (JPEG, PNG, GIF, PDF,
+  ZIP) must find their terminator inside the allowed region; header-only
+  formats (BMP, RIFF/WAV, RIFF/AVI, MP4/MOV) carry a length field the parser
+  reads back — the ISO-BMFF walker skips a multi-gigabyte `mdat` by reading
+  only box headers. A format with neither is not registered.
+- **Weak headers are validated first.** `BM` and `GIF8` alone would fire
+  constantly, so each hit is checked structurally before it is queued. Random
+  data produces no results.
+- **Nested headers are not double-reported.** Results come out in ascending
+  offset order and advance the cursor past the object just emitted, so a
+  signature inside an already-carved file is skipped; carve it again from the
+  extracted copy if you need it.
+- **Truncated candidates are opt-in.** `Options.AllowTruncated` also reports
+  objects whose footer lies past the scanned range; it is off by default
+  because those are frequently false positives.
+- An ordered queue is capped at 8192 unresolved candidates, and the service
+  caps a run at 10000 results (100000 maximum), so a disk dense in signatures
+  cannot exhaust memory or freeze the UI.
+
+The service exposes `CarveTypes`, `CarveScan` (with `progress` events) and
+`CarveExport`; the export writes with `O_EXCL` and records a SHA-256 audit
+entry like every other extraction.
+
 ### Service events
 
 The service emits `progress` events (`op`, `done`) for long operations
@@ -138,14 +169,19 @@ re-render. The store is the only shared mutable state.
 | Stage | Scope | Packages added |
 |---|---|---|
 | 1 ✅ | Hex editor core + GUI shell | `core`, `hex`, `encoding`, `hash`, `audit`, `config`, `service` |
-| 2 ◐ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs; GUI disk panel still to come. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
-| 3 | Recovery & carving, case management & reports, browser artifacts | `recovery`, `forensics`, `browser`, `dump` |
+| 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
+| 3 ◐ | Carving is done (scanner + service APIs + GUI). Case management & reports, browser artifacts, and HFS+/APFS still to come | `recovery`, `forensics`, `browser`, `dump` |
 | 4 | Memory viewer (read-only), crash-dump analyzer | `memory` |
 | 5 | Scripting, utilities, packaging, signing, configurable keymap engine | `script`, `template`, `update` |
 
-Placeholder directories exist for stages 3–5; they contain no code yet. HFS+
-and APFS are intentionally deferred to stage 3: admitting a half-working
-parser would be worse than saying "not yet supported".
+Stage 3 ships `internal/recovery`; `internal/forensics`, `internal/browser`
+and `internal/dump` still hold only their planned sub-directory layout, which
+is for **resources rather than Go packages** — report templates under
+`forensics/report`, per-browser artifact definitions under `browser/chrome`
+and so on. The Go code stays at the package root because `case` is not a legal
+Go package name. HFS+ and APFS are intentionally deferred to the rest of
+stage 3: admitting a half-working parser would be worse than saying "not yet
+supported".
 Non-goal forever: anti-forensic features, credential extraction, stealth —
 see [legal.md](legal.md).
 

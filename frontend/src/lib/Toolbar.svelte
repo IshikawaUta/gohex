@@ -46,6 +46,9 @@
   <button class="tb" onclick={() => (store.showDisk = true)} title="Disk image browser">
     Disk
   </button>
+  <button class="tb" onclick={() => (store.showCarve = true)} title="Carve files out of an image">
+    Carve
+  </button>
   <span class="sep"></span>
   <button
     class="tb"

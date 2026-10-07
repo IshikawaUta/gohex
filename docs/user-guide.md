@@ -85,6 +85,29 @@ Toolbar → **Hash…** computes a checksum of the active document; the result
 appears in the status bar (`SHA-256: …`). The list includes *file* hashes
 (sha256/sha512/sha1/md5/crc32/crc32c/blake3/xxhash64) and *selection* variants.
 
+## Carving
+
+Toolbar → **Carve** recovers files that are no longer reachable through a
+directory — deleted, orphaned, or living in an image whose file system you
+cannot mount.
+
+1. **Open image…** selects the evidence (any container GoHex can read: RAW,
+   E01, VHD, QCOW2, VMDK, VHDX, or a plain file).
+2. Optionally narrow **From** / **To** (decimal or `0x…` hex) to a single
+   partition instead of the whole medium.
+3. Toggle the types to look for. `⌁` types end at a footer (JPEG, PNG, GIF,
+   PDF, ZIP); `⌘` types declare their own size (BMP, WAV, AVI, MP4).
+4. **Scan** lists every candidate whose size it can prove, with offset and
+   length, while progress runs in the status bar.
+
+Select a row to **Export…** it (written to a new file, SHA-256 recorded in the
+audit log) or **Open as hex** to inspect the recovered bytes in place.
+
+*Include truncated candidates* also reports objects whose terminator lies past
+the scanned range. Leave it off unless you know the image is cut short — most
+such hits are false positives. Recovery is best-effort: a file whose header and
+footer were both overwritten cannot be brought back.
+
 ## Preferences (⚙ or `Ctrl+,`)
 
 | Setting | Notes |

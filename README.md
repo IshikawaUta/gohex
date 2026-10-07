@@ -15,7 +15,7 @@
 
 ## Status
 
-Stage 1 (foundation): hex editor core + GUI shell. Remaining stages are documented in [docs/architecture.md](docs/architecture.md).
+Stage 1 (hex editor core + GUI shell) and Stage 2 (disk images, partitions, read-only file systems) are done; Stage 3 is in progress. The full roadmap lives in [docs/architecture.md](docs/architecture.md).
 
 | Area | Status |
 |---|---|
@@ -24,7 +24,7 @@ Stage 1 (foundation): hex editor core + GUI shell. Remaining stages are document
 | Disk & image reader (RAW/E01/VHD/QCOW2/VMDK/VHDX) + partition tables | ◐ stage 2 |
 | Read-only file system browsers (FAT/NTFS/ext/exFAT/ISO) | ◐ stage 2 |
 | HFS+/APFS file system support | 🔜 stage 3 |
-| Data recovery & carving | 🔜 stage 3 |
+| Data recovery & carving | ◐ stage 3 |
 | Forensic case management & reports | 🔜 stage 3 |
 | Browser artifact parser | 🔜 stage 3 |
 | Memory viewer (read-only) & dump analyzer | 🔜 stage 4 |

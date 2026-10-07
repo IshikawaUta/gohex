@@ -16,10 +16,43 @@ import * as config$0 from "../config/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as fs$0 from "../fs/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as recovery$0 from "../recovery/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
+
+/**
+ * CarveExport writes one recovered object from path to dstPath. The destination
+ * must not exist, the copy is hashed, and both the success and the failure are
+ * recorded in the audit log.
+ */
+export function CarveExport(path: string, item: recovery$0.Carved, dstPath: string): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(828723027, path, item, dstPath);
+}
+
+/**
+ * CarveScan looks for embedded files inside path (or inside [from, to) of it
+ * when either bound is set) and returns their offsets and lengths. Evidence is
+ * only read: nothing is written back to the source.
+ * 
+ * Results are ordered by offset and each entry's extent is known — either from
+ * a footer or from the file's own length field. Pass allowTruncated to also
+ * report objects whose footer lies past the scanned range.
+ */
+export function CarveScan(path: string, $from: number, to: number, types: string[] | null, max: number, allowTruncated: boolean): $CancellablePromise<recovery$0.Carved[] | null> {
+    return $Call.ByID(3568217736, path, $from, to, types, max, allowTruncated);
+}
+
+/**
+ * CarveTypes lists the file types the carver recognises, for the UI's
+ * type picker.
+ */
+export function CarveTypes(): $CancellablePromise<recovery$0.SpecInfo[] | null> {
+    return $Call.ByID(1069937594);
+}
 
 /**
  * Catalog returns the full UI translation catalog for lang ("en" or "id"),
