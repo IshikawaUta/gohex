@@ -18,6 +18,9 @@ import * as browser$0 from "../browser/models.js";
 import * as config$0 from "../config/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as forensics$0 from "../forensics/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as fs$0 from "../fs/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -84,6 +87,96 @@ export function CarveScan(path: string, $from: number, to: number, types: string
  */
 export function CarveTypes(): $CancellablePromise<recovery$0.SpecInfo[] | null> {
     return $Call.ByID(1069937594);
+}
+
+/**
+ * CaseClose releases the open case without saving it. Discarding unsaved work
+ * is recorded so a later "where did that finding go" has an answer.
+ */
+export function CaseClose(): $CancellablePromise<void> {
+    return $Call.ByID(422247614);
+}
+
+/**
+ * CaseEventAdd appends one point to the case timeline.
+ */
+export function CaseEventAdd(e: forensics$0.Event): $CancellablePromise<$models.CaseState> {
+    return $Call.ByID(2485260893, e);
+}
+
+/**
+ * CaseEvidenceAdd hashes the file at path and records it in the open case.
+ * Hashing happens outside the lock — a multi-gigabyte image must not freeze
+ * the rest of the application — and the entry is only added if the same case
+ * is still open when the digest is ready.
+ */
+export function CaseEvidenceAdd(path: string, kind: string, note: string): $CancellablePromise<$models.CaseState> {
+    return $Call.ByID(418837414, path, kind, note);
+}
+
+/**
+ * CaseEvidenceVerify re-hashes one evidence file and reports whether it still
+ * matches the digest recorded when it was added. Both outcomes are audited:
+ * a mismatch is the finding, not a failure to record.
+ */
+export function CaseEvidenceVerify(id: string): $CancellablePromise<forensics$0.VerifyResult> {
+    return $Call.ByID(3388138670, id);
+}
+
+/**
+ * CaseFindingAdd records a conclusion in the open case.
+ */
+export function CaseFindingAdd($in: $models.FindingInput): $CancellablePromise<$models.CaseState> {
+    return $Call.ByID(751356942, $in);
+}
+
+/**
+ * CaseNew starts a new, empty case in memory. An already-open case is a
+ * refusal, not a silent replacement: the examiner may have unsaved findings.
+ */
+export function CaseNew(name: string, examiner: string, description: string): $CancellablePromise<$models.CaseState> {
+    return $Call.ByID(2887277452, name, examiner, description);
+}
+
+/**
+ * CaseOpen loads a case file. The file must already be a valid case: a
+ * half-written or foreign JSON document is refused rather than imported.
+ */
+export function CaseOpen(path: string): $CancellablePromise<$models.CaseState> {
+    return $Call.ByID(4276481386, path);
+}
+
+/**
+ * CaseReport renders the open case to dstPath, which must not exist. The
+ * destination is hashed, so a report handed to someone else can be tied back
+ * to this run, and the render is audited as an export.
+ */
+export function CaseReport(format: string, dstPath: string): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(493420600, format, dstPath);
+}
+
+/**
+ * CaseSave writes the open case to path. The case file is the record of the
+ * investigation, so it is hashed and the hash goes into the audit log.
+ */
+export function CaseSave(path: string): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(3006901263, path);
+}
+
+/**
+ * CaseSetMeta updates the descriptive fields of the open case.
+ */
+export function CaseSetMeta(name: string, examiner: string, description: string): $CancellablePromise<$models.CaseState> {
+    return $Call.ByID(433275327, name, examiner, description);
+}
+
+/**
+ * CaseState reports the case currently held by the service, if any. It reads
+ * a pointer under the lock and copies nothing: the case is only ever replaced
+ * wholesale, never mutated behind the caller's back.
+ */
+export function CaseState(): $CancellablePromise<$models.CaseState> {
+    return $Call.ByID(1115711879);
 }
 
 /**

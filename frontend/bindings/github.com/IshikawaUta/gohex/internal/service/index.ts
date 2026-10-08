@@ -7,12 +7,14 @@ export {
 };
 
 export type {
+    CaseState,
     DiskLayout,
     DocInfo,
     FileInfo,
     FileSystemInfo,
     FindRequest,
     FindResponse,
+    FindingInput,
     ImageInfo,
     PartitionInfo,
     SaveResult,

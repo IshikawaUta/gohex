@@ -130,6 +130,37 @@ Firefox profile without an annotation, or a Safari database whose title column
 is missing, still yields everything else. Read-only: no database is modified,
 checkpointed or repaired.
 
+## Case management & reports
+
+Toolbar → **Case** keeps the record of an investigation: what you examined,
+what it hashed to, what you concluded, and a timeline of events. The case
+itself is an ordinary JSON file — diff it, review it, archive it — and it
+never copies evidence around: it records the path, size and SHA-256 of each
+file, which is what chain of custody needs.
+
+1. **Name** the case, add an examiner and a description, then **New case**.
+   **Open case…** loads an existing `.json` case file instead.
+2. **Evidence → Add evidence…** takes one or more files (an image, a carved
+   object, an export). Each is streamed through SHA-256 and recorded; the
+   same file twice is refused.
+3. **Verify** re-hashes one file against the digest recorded when it was
+   added; **Verify all** does the whole list and reports how many matched.
+   A changed file is reported as `MISMATCH` and written to the audit log as
+   a failed integrity check — it is the finding, not a crash.
+4. **Findings → Add finding** records a conclusion with a severity and an
+   optional link to the evidence it rests on.
+5. **Timeline → Add event** adds one point (time, kind, source, summary),
+   shown oldest first, with undated entries last.
+6. **Save case…** writes the JSON file (created new or updated in place,
+   mode `0600`, SHA-256 recorded in the audit log).
+7. **Export report…** renders HTML or JSON to a file that must not already
+   exist. The report carries the case summary, evidence table with full
+   digests, findings and timeline, plus a checksum over the canonical JSON of
+   the case so a reader can prove which case it describes.
+
+Only one case is open at a time; **Close** releases it. Closing without
+saving discards unsaved findings, and that too is recorded in the audit log.
+
 ## Preferences (⚙ or `Ctrl+,`)
 
 | Setting | Notes |

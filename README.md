@@ -25,7 +25,7 @@ Stage 1 (hex editor core + GUI shell) and Stage 2 (disk images, partitions, read
 | Read-only file system browsers (FAT/NTFS/ext/exFAT/ISO) | ◐ stage 2 |
 | HFS+/APFS file system support | 🔜 stage 3 |
 | Data recovery & carving | ◐ stage 3 |
-| Forensic case management & reports | 🔜 stage 3 |
+| Forensic case management & reports | ◐ stage 3 |
 | Browser artifact parser | ◐ stage 3 |
 | Memory viewer (read-only) & dump analyzer | 🔜 stage 4 |
 | Scripting, utilities, packaging, signing | 🔜 stage 5 |

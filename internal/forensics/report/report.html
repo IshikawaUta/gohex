@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoHex report — {{.Case.Name}}</title>
+<style>
+  :root {
+    --ink: #14181d;
+    --dim: #5b6672;
+    --line: #d7dde3;
+    --bg: #ffffff;
+    --band: #f4f6f8;
+    --accent: #1f5f99;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 28px 48px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.55 "DejaVu Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  header {
+    border-bottom: 3px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+  }
+  h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: .01em; }
+  .tool { color: var(--dim); font-size: 13px; }
+  h2 {
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--accent);
+    margin: 30px 0 10px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 5px;
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td {
+    text-align: left;
+    vertical-align: top;
+    padding: 6px 9px;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    background: var(--band);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--dim);
+    white-space: nowrap;
+  }
+  tr.empty td { color: var(--dim); font-style: italic; }
+  .mono { font-family: "DejaVu Sans Mono", "Consolas", monospace; font-size: 12px; }
+  .hash { word-break: break-all; }
+  .muted { color: var(--dim); }
+  .desc { white-space: pre-wrap; margin: 0 0 6px; }
+  .facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; font-size: 13px; }
+  .facts dt { color: var(--dim); }
+  .facts dd { margin: 0; }
+  .sev {
+    display: inline-block;
+    padding: 1px 7px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .sev-high, .sev-critical { border-color: #b3341f; color: #b3341f; }
+  .sev-medium { border-color: #b8791b; color: #b8791b; }
+  .sev-low, .sev-info { border-color: var(--line); color: var(--dim); }
+  .none { color: var(--dim); font-style: italic; }
+  footer {
+    margin-top: 34px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    color: var(--dim);
+    font-size: 12px;
+  }
+  footer .hash { font-size: 11px; }
+  @media print {
+    body { padding: 0; }
+    h2 { break-after: avoid; }
+    table, header, footer { break-inside: avoid; }
+    tr { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Forensic case report</h1>
+  <div class="tool">
+    {{.Case.Name}} · generated {{when .GeneratedAt}} · {{.Tool.Name}} {{.Tool.Version}} ({{.Tool.GOOS}})
+  </div>
+</header>
+
+<section>
+  <h2>Case</h2>
+  <dl class="facts">
+    <dt>Case ID</dt><dd class="mono">{{.Case.ID}}</dd>
+    <dt>Examiner</dt><dd>{{if .Case.Examiner}}{{.Case.Examiner}}{{else}}<span class="none">not recorded</span>{{end}}</dd>
+    <dt>Opened</dt><dd>{{when .Case.CreatedAt}}</dd>
+    <dt>Last modified</dt><dd>{{when .Case.ModifiedAt}}</dd>
+  </dl>
+  {{if .Case.Description}}<p class="desc">{{.Case.Description}}</p>{{end}}
+</section>
+
+<section>
+  <h2>Evidence ({{len .Evidence}})</h2>
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Kind</th><th>Path</th><th>Size</th><th>SHA-256</th><th>Added</th></tr>
+    </thead>
+    <tbody>
+      {{if .Evidence}}
+      {{range .Evidence}}
+      <tr>
+        <td class="mono">{{.ID}}</td>
+        <td>{{.Kind}}</td>
+        <td class="mono">{{.Path}}{{if .Note}}<div class="muted">{{.Note}}</div>{{end}}</td>
+        <td>{{size .Size}}</td>
+        <td class="mono hash">{{.SHA256}}</td>
+        <td>{{when .AddedAt}}</td>
+      </tr>
+      {{end}}
+      {{else}}
+      <tr class="empty"><td colspan="6">No evidence recorded.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Findings ({{len .Findings}})</h2>
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Severity</th><th>Title</th><th>Detail</th><th>Evidence</th><th>Recorded</th></tr>
+    </thead>
+    <tbody>
+      {{if .Findings}}
+      {{range .Findings}}
+      <tr>
+        <td class="mono">{{.ID}}</td>
+        <td><span class="sev sev-{{.Severity}}">{{.Severity}}</span></td>
+        <td>{{.Title}}</td>
+        <td>{{if .Detail}}{{.Detail}}{{else}}<span class="muted">—</span>{{end}}</td>
+        <td class="mono">{{if .EvidenceID}}{{.EvidenceID}}{{else}}<span class="muted">—</span>{{end}}</td>
+        <td>{{when .CreatedAt}}</td>
+      </tr>
+      {{end}}
+      {{else}}
+      <tr class="empty"><td colspan="6">No findings recorded.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Timeline ({{len .Timeline}})</h2>
+  <table>
+    <thead>
+      <tr><th>Time</th><th>Kind</th><th>Source</th><th>Summary</th><th>Evidence</th></tr>
+    </thead>
+    <tbody>
+      {{if .Timeline}}
+      {{range .Timeline}}
+      <tr>
+        <td class="mono" title="{{whenISO .Time}}">{{when .Time}}</td>
+        <td>{{.Kind}}</td>
+        <td>{{if .Source}}{{.Source}}{{else}}<span class="muted">—</span>{{end}}</td>
+        <td>{{.Summary}}</td>
+        <td class="mono">{{if .EvidenceID}}{{.EvidenceID}}{{else}}<span class="muted">—</span>{{end}}</td>
+      </tr>
+      {{end}}
+      {{else}}
+      <tr class="empty"><td colspan="5">No events recorded.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</section>
+
+<footer>
+  <p>
+    Integrity: <code>checksum</code> is the SHA-256 of the canonical (compact)
+    JSON encoding of the case record this report was rendered from. Recompute
+    it from the case file to confirm the report has not been paired with a
+    different case. Evidence digests were taken when each item was added;
+    re-verify them against the original files before relying on them.
+  </p>
+  <p class="mono hash">SHA-256: {{.Checksum}}</p>
+</footer>
+</main>
+</body>
+</html>

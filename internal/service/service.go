@@ -21,6 +21,7 @@ import (
 	"github.com/IshikawaUta/gohex/internal/config"
 	"github.com/IshikawaUta/gohex/internal/core"
 	encoding "github.com/IshikawaUta/gohex/internal/encoding" // package bincoding
+	"github.com/IshikawaUta/gohex/internal/forensics"
 	"github.com/IshikawaUta/gohex/internal/fs"
 	"github.com/IshikawaUta/gohex/internal/hash"
 	"github.com/IshikawaUta/gohex/internal/hex"
@@ -144,6 +145,11 @@ type App struct {
 	nextID  int64
 	emit    Emitter
 	fss     map[string]*fsSession
+
+	// The open forensic case, if any. It is replaced wholesale and guarded
+	// by mu; the heavy work (hashing evidence) happens outside the lock.
+	curCase  *forensics.Case
+	casePath string
 
 	startupSkipDisclaimer bool
 	startupFiles          []string

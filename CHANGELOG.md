@@ -47,6 +47,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   `BrowserProfiles`/`BrowserRead`/`BrowserExport` with CSV and JSON export,
   SHA-256 audit records, a GUI browser panel, and a one-time ethics notice as
   required by `docs/legal.md`. No credential, cookie or form-data extraction.
+- **Case management & reports** (`internal/forensics`): a JSON case file with
+  a schema version that records evidence (path, size, SHA-256 — never a copy
+  of the bytes), findings with severity, and a sorted timeline; evidence can
+  be re-verified and a mismatch is recorded as a failed integrity check.
+  Reports render to a self-contained HTML document or JSON, both carrying a
+  checksum over the canonical case record, with an embedded template that
+  needs no network. Exposed as `CaseState`/`CaseNew`/`CaseOpen`/`CaseSave`/
+  `CaseEvidenceAdd`/`CaseEvidenceVerify`/`CaseFindingAdd`/`CaseEventAdd`/
+  `CaseReport` and a GUI case panel.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

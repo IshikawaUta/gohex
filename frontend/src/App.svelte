@@ -16,6 +16,7 @@
   import Carve from "./lib/dialogs/Carve.svelte";
   import Ethics from "./lib/dialogs/Ethics.svelte";
   import Browser from "./lib/dialogs/Browser.svelte";
+  import Case from "./lib/dialogs/Case.svelte";
 
   let doc = $derived(store.active);
   let ready = $state(false);
@@ -94,13 +95,15 @@
         store.showAbout ||
         store.showDisk ||
         store.showCarve ||
-        store.showBrowser
+        store.showBrowser ||
+        store.showCase
       ) {
         store.showPrefs = false;
         store.showAbout = false;
         store.showDisk = false;
         store.showCarve = false;
         store.showBrowser = false;
+        store.showCase = false;
         return;
       }
       if (store.showEthics) {
@@ -235,6 +238,9 @@
   {/if}
   {#if store.showBrowser}
     <Browser />
+  {/if}
+  {#if store.showCase}
+    <Case />
   {/if}
 </div>
 

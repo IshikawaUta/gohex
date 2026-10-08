@@ -12,7 +12,7 @@ later stages plug in.
 │ frontend/            Svelte 5 + TypeScript (Wails webview) │
 │   virtual hex grid · tabs · find panel · dialogs · i18n    │
 ├──────────────────── generated bindings ────────────────────┤
-│ internal/service     RPC façade (50 methods, events)        │
+│ internal/service     RPC façade (61 methods, events)        │
 │   documents, search, hashing, images, partitions, fs, ...  │
 ├────────────────────────────────────────────────────────────┤
 │ internal/hex         Document: journal, undo/redo, search  │
@@ -22,6 +22,7 @@ later stages plug in.
 │ internal/fs          read-only FAT/NTFS/ext/exFAT/ISO view │
 │ internal/recovery    signature-based file carving          │
 │ internal/browser     Chrome/Firefox/Safari artefact reader │
+│ internal/forensics   case, evidence, timeline, reports     │
 │ internal/sqlite      read-only SQLite + WAL merge (no cgo) │
 │ internal/encoding    text codecs, Intel-HEX, S-records     │
 │ internal/hash        sha*, md5, crc32/c, blake3, xxhash64  │
@@ -170,6 +171,49 @@ both read and export are audited (`op=browser`, `mode=browser_<kind>`), the
 export writes with `O_EXCL` and records a SHA-256, and the GUI gates the
 dialog behind a one-time ethics notice required by `legal.md`.
 
+### Case management and reports
+
+`internal/forensics` is the casework layer: what was examined, when it was
+added, what it hashed to, and what the examiner concluded.
+
+- **A case is a plain JSON document** carrying `schemaVersion`. Saving is
+  atomic — a temporary file in the same directory is written, flushed and
+  renamed over the destination — and the file is mode `0600`, because a case
+  names people and systems. A file that is not a case is `ErrNotCase`; a file
+  from a newer schema is `ErrSchemaTooNew` rather than a half-read import.
+- **Evidence is referenced, never copied.** An entry holds path, size and the
+  SHA-256 streamed from the file when it was added. `VerifyEvidence`
+  re-hashes it and reports match or mismatch; a file that has vanished is an
+  error, not a mismatch, because nothing was checked at all.
+- **Findings** carry a severity (`info`…`critical`) and may point at the
+  evidence they rest on; an unknown identifier or severity is refused rather
+  than stored. **Events** make the timeline, returned oldest-first with
+  undated entries last — an unknown time is not an early one.
+- **Reports are a rendering, not a second source of truth.**
+  `BuildReport` flattens the case into a `ReportDocument` with the timeline
+  already sorted, so the HTML and the JSON cannot disagree. `checksum` is the
+  SHA-256 of the canonical (compact) JSON encoding of the case record,
+  embedded in both forms so a reader can tie a report back to the case file
+  they were given. The HTML template is embedded in the binary and is fully
+  self-contained — no scripts, fonts or remote assets — so it still renders
+  correctly when archived years later, and it is laid out for print.
+
+The service exposes `CaseState`, `CaseNew`, `CaseOpen`, `CaseClose`,
+`CaseSave`, `CaseSetMeta`, `CaseEvidenceAdd`, `CaseEvidenceVerify`,
+`CaseFindingAdd`, `CaseEventAdd` and `CaseReport`. Exactly one case may be
+open: a second `New` or `Open` is refused instead of silently discarding
+unsaved findings, and evidence hashing runs outside the lock so a
+multi-gigabyte image cannot freeze the rest of the application. Every
+lifecycle step is audited — `case` for open/save/close, `import` with the
+digest for evidence, `hash_verify` for both outcomes of a verification (a
+mismatch is logged as an error so an auditor scanning for failed integrity
+checks finds it), and `export` for the report, which is written with
+`O_EXCL` and hashed.
+
+Non-goals: no evidence copying, no cloud sync, no automatic conclusions —
+the package records what the examiner tells it and refuses to record things
+it cannot validate.
+
 ### Service events
 
 The service emits `progress` events (`op`, `done`) for long operations
@@ -208,15 +252,16 @@ re-render. The store is the only shared mutable state.
 |---|---|---|
 | 1 ✅ | Hex editor core + GUI shell | `core`, `hex`, `encoding`, `hash`, `audit`, `config`, `service` |
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
-| 3 ◐ | Carving and browser artifacts are done. Case management & reports and HFS+/APFS still to come | `recovery`, `browser`, `forensics`, `dump` |
+| 3 ◐ | Carving, browser artifacts and case management & reports are done. HFS+/APFS still to come | `recovery`, `browser`, `forensics`, `dump` |
 | 4 | Memory viewer (read-only), crash-dump analyzer | `memory` |
 | 5 | Scripting, utilities, packaging, signing, configurable keymap engine | `script`, `template`, `update` |
 
-Stage 3 ships `internal/recovery` and `internal/browser`. `internal/forensics`
-and `internal/dump` still hold only their planned sub-directory layout, which
-is for **resources rather than Go packages** — report templates under
-`forensics/report` and so on. The Go code stays at the package root because
-`case` is not a legal Go package name. HFS+ and APFS are intentionally deferred to the rest of
+Stage 3 ships `internal/recovery`, `internal/browser` and `internal/forensics`.
+`internal/dump` still holds only its planned sub-directory layout, which is
+for **resources rather than Go packages** — the same convention
+`internal/forensics` keeps for its report template under `forensics/report`.
+The Go code stays at the package root because `case` is not a legal Go package
+name. HFS+ and APFS are intentionally deferred to the rest of
 stage 3: admitting a half-working parser would be worse than saying "not yet
 supported".
 Non-goal forever: anti-forensic features, credential extraction, stealth —

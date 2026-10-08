@@ -52,6 +52,9 @@
   <button class="tb" onclick={() => A.openBrowser()} title="Browser history, downloads, bookmarks">
     Browser
   </button>
+  <button class="tb" onclick={() => (store.showCase = true)} title="Forensic case, evidence and report">
+    Case
+  </button>
   <span class="sep"></span>
   <button
     class="tb"

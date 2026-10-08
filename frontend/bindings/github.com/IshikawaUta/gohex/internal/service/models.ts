@@ -6,7 +6,20 @@
 import * as disk$0 from "../disk/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as forensics$0 from "../forensics/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as hex$0 from "../hex/models.js";
+
+/**
+ * CaseState is the whole case view the front end needs: whether one is open,
+ * which file it last lived at, and the case itself.
+ */
+export interface CaseState {
+    "open": boolean;
+    "path"?: string;
+    "case"?: forensics$0.Case | null;
+}
 
 /**
  * DiskLayout is the parsed partition table of an image with a filesystem
@@ -104,6 +117,18 @@ export interface FindResponse {
     "matches": hex$0.Match[] | null;
     "count": number;
     "truncated": boolean;
+}
+
+/**
+ * FindingInput is what a caller supplies for a finding. The identifier and
+ * the timestamp belong to the case, not to whoever types the finding in, so
+ * they are deliberately absent from this shape.
+ */
+export interface FindingInput {
+    "title": string;
+    "detail"?: string;
+    "severity"?: string;
+    "evidenceId"?: string;
 }
 
 /**

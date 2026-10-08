@@ -21,6 +21,7 @@ class Store {
   showCarve = $state(false);
   showEthics = $state(false);
   showBrowser = $state(false);
+  showCase = $state(false);
   findOpen = $state(false);
   pendingNibble = $state(-1);
   revealFn: ((off: number, selLen?: number) => void) | null = null;
