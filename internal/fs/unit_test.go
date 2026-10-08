@@ -82,10 +82,10 @@ func TestProbeAppleMessages(t *testing.T) {
 		setup func([]byte)
 		want  string
 	}{
-		{"hfsplus", func(b []byte) { b[1024], b[1025] = 'H', '+' }, "HFS+"},
-		{"hfsplusHX", func(b []byte) { b[1024], b[1025] = 'H', 'X' }, "HFS+"},
+		{"hfsplus", func(b []byte) { b[1024], b[1025] = 'H', '+' }, "hfs+:"},
+		{"hfsplusHX", func(b []byte) { b[1024], b[1025] = 'H', 'X' }, "hfs+:"},
 		{"hfs", func(b []byte) { b[1024], b[1025] = 'B', 'D' }, "HFS detected"},
-		{"apfs", func(b []byte) { copy(b[32:], "NXSB") }, "APFS"},
+		{"apfs", func(b []byte) { copy(b[32:], "NXSB") }, "apfs:"},
 		{"unknown", nil, "unrecognized"},
 	}
 	for _, tc := range cases {

@@ -56,6 +56,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   needs no network. Exposed as `CaseState`/`CaseNew`/`CaseOpen`/`CaseSave`/
   `CaseEvidenceAdd`/`CaseEvidenceVerify`/`CaseFindingAdd`/`CaseEventAdd`/
   `CaseReport` and a GUI case panel.
+- **HFS+/APFS file systems** (`internal/fs`): read-only mounts for
+  HFS+/HFSX — volume header, catalogue and extents-overflow B-trees with
+  extent-overflow records, key-compare case folding, UTF-16 names, decmpfs
+  compression and hardlink/symlink/readonly flags — and for APFS: latest
+  valid checkpoint adoption, object-map resolution (physical and virtual),
+  fs-tree and dedicated fext-tree walks, hashed directory keys per the
+  incompat flags, xfield dstreams and the container's single volume, all
+  behind the existing `ProbeFileSystem`/`FsList`/`FsStat`/`FsRead`/
+  `FsExport` APIs. Images are assembled by in-test builders, so no
+  `mkfs.hfsplus`/`mkfs.apfs` is needed to run the suite.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

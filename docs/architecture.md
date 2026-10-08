@@ -19,7 +19,7 @@ later stages plug in.
 │ internal/core        Sources: files, mmap, windowed reads  │
 │ internal/disk        MBR / EBR / GPT partition tables      │
 │ internal/image       image containers (raw, E01, VHD, ...) │
-│ internal/fs          read-only FAT/NTFS/ext/exFAT/ISO view │
+│ internal/fs          read-only FAT/NTFS/ext/ISO/HFS+/APFS  │
 │ internal/recovery    signature-based file carving          │
 │ internal/browser     Chrome/Firefox/Safari artefact reader │
 │ internal/forensics   case, evidence, timeline, reports     │
@@ -82,15 +82,23 @@ range that a plain file provides, so every engine above it is format-agnostic:
 - **Delegated formats** (QCOW2, VMDK, VHDX) are flattened to a temporary raw
   file with `qemu-img convert`, which is removed on `Close`. These formats
   require `qemu-img` on `PATH`; `Open` says so explicitly when it is missing.
-- HFS+/APFS and multi-segment/Ex01/L01 variants are deliberately out of scope
-  for Stage 2 and report *"not yet supported (roadmap stage 3)"* rather than
-  pretending to parse them.
+- Multi-segment/Ex01/L01 variants are deliberately out of scope and report
+  *"not yet supported (roadmap stage 3)"* rather than pretending to parse
+  them; HFS+/APFS readers were added later in stage 3 (see below).
 
 `internal/disk` parses MBR (including extended/EBR chains) and GPT into a
 `Table` with non-fatal warnings instead of hard failures, and `internal/fs`
 exposes a read-only `FS` (`List`/`Stat`/`ReadAt`) over FAT12/16/32, exFAT,
-NTFS, ext2/3/4 and ISO9660 — case-insensitive where the real filesystem is,
-case-sensitive where it is not.
+NTFS, ext2/3/4, ISO9660, HFS+/HFSX and APFS — case-insensitive where the
+real filesystem is, case-sensitive where it is not. The Apple readers follow
+the same eager-index philosophy as the SQLite reader: at `Probe` time the
+HFS+ catalogue and extents-overflow B-trees, or the APFS checkpoint,
+object maps and fs-tree, are walked once into in-memory maps, so every later
+`List`/`Stat`/`ReadAt` is pure memory arithmetic. Both parsers report
+honest attributes (`compressed` for decmpfs/HFS files, `encrypted` for
+sealed volumes, `hardlink`/`symlink`/`readonly`) instead of guessing at
+bytes they cannot decode, and every error is prefixed `fs/hfs+:` or
+`fs/apfs:`.
 
 The service layers them into `ProbeImage`/`OpenImage`/`OpenRange`,
 `Partitions` and `ProbeFileSystem`/`FsList`/`FsStat`/`FsRead`/`FsExport`.
@@ -252,7 +260,7 @@ re-render. The store is the only shared mutable state.
 |---|---|---|
 | 1 ✅ | Hex editor core + GUI shell | `core`, `hex`, `encoding`, `hash`, `audit`, `config`, `service` |
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
-| 3 ◐ | Carving, browser artifacts and case management & reports are done. HFS+/APFS still to come | `recovery`, `browser`, `forensics`, `dump` |
+| 3 ◐ | Carving, browser artifacts, case management & reports and HFS+/APFS file systems are done. Multi-segment E01/L01 still to come | `recovery`, `browser`, `forensics`, `dump` |
 | 4 | Memory viewer (read-only), crash-dump analyzer | `memory` |
 | 5 | Scripting, utilities, packaging, signing, configurable keymap engine | `script`, `template`, `update` |
 
@@ -261,9 +269,11 @@ Stage 3 ships `internal/recovery`, `internal/browser` and `internal/forensics`.
 for **resources rather than Go packages** — the same convention
 `internal/forensics` keeps for its report template under `forensics/report`.
 The Go code stays at the package root because `case` is not a legal Go package
-name. HFS+ and APFS are intentionally deferred to the rest of
-stage 3: admitting a half-working parser would be worse than saying "not yet
-supported".
+name. HFS+ and APFS arrived in the last stage-3 slice as eager, read-only
+parsers: admitting a half-working parser would be worse than saying "not yet
+supported", so both ship only with their full feature sets (HFS+ with the
+catalogue, extents-overflow and key-compare folding; APFS with checkpoint
+adoption, object maps, hashed directory keys and fext trees).
 Non-goal forever: anti-forensic features, credential extraction, stealth —
 see [legal.md](legal.md).
 

@@ -5,7 +5,8 @@
 // no platform-specific mount is used: parsing is pure userspace.
 //
 // Supported filesystems: FAT12/16/32, exFAT, ext2/3/4, NTFS, ISO 9660
-// (with Rock Ridge names where present). Probing is by on-disk magic only.
+// (with Rock Ridge names where present), HFS+/HFSX and APFS (read-only).
+// Probing is by on-disk magic only.
 package fs
 
 import (

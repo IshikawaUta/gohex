@@ -22,8 +22,8 @@ Stage 1 (hex editor core + GUI shell) and Stage 2 (disk images, partitions, read
 | Hex editor (open >4 GB, edit, undo/redo, search, save) | ✅ |
 | GUI shell (virtual grid, tabs, themes, shortcuts) | ✅ |
 | Disk & image reader (RAW/E01/VHD/QCOW2/VMDK/VHDX) + partition tables | ◐ stage 2 |
-| Read-only file system browsers (FAT/NTFS/ext/exFAT/ISO) | ◐ stage 2 |
-| HFS+/APFS file system support | 🔜 stage 3 |
+| Read-only file system browsers (FAT/NTFS/ext/exFAT/ISO) | ✅ stage 2 |
+| HFS+/APFS file system support (read-only) | ✅ stage 3 |
 | Data recovery & carving | ◐ stage 3 |
 | Forensic case management & reports | ◐ stage 3 |
 | Browser artifact parser | ◐ stage 3 |

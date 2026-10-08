@@ -85,6 +85,28 @@ Toolbar → **Hash…** computes a checksum of the active document; the result
 appears in the status bar (`SHA-256: …`). The list includes *file* hashes
 (sha256/sha512/sha1/md5/crc32/crc32c/blake3/xxhash64) and *selection* variants.
 
+## Disk images & file systems
+
+Toolbar → **Disk** opens the disk-image browser and walks a medium
+read-only.
+
+1. **Open image…** selects the container (RAW, E01, VHD, QCOW2, VMDK,
+   VHDX — `qemu-img` is needed for the last three).
+2. MBR/GPT partitions are listed automatically; pick one to browse, or
+   browse the whole medium when the image has no partition table.
+3. Click through directories like a file manager; select a file to
+   **Export file…** (written to a new path, SHA-256 recorded in the audit
+   log) or **Open as hex** to load its bytes into the editor.
+
+Supported file systems: FAT12/16/32, exFAT, NTFS, ext2/3/4, ISO9660 (Rock
+Ridge names where present), HFS+/HFSX and APFS. Name lookups follow the
+volume's own rules — HFS+ honours the catalogue key-compare type, APFS
+honours its case-insensitive incompat flag — and APFS mounts the newest
+valid checkpoint of its single volume. Files that GoHex cannot honestly
+decode are *flagged, never guessed*: `compressed` (HFS+ decmpfs),
+`encrypted` (sealed APFS volumes), `hardlink`, `symlink` and `readonly`
+appear as attributes on the entry.
+
 ## Carving
 
 Toolbar → **Carve** recovers files that are no longer reachable through a
