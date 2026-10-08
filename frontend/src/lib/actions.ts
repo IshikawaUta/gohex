@@ -1,5 +1,6 @@
 import { store, flash } from "./state.svelte";
 import { svc, models, Dialogs, errMsg } from "./api";
+import { ethicsAccepted } from "./ethics";
 import type { Preferences } from "../../bindings/github.com/IshikawaUta/gohex/internal/config/models";
 
 export async function refreshDocs(): Promise<void> {
@@ -208,6 +209,14 @@ export async function hashActive(algo: string, selectionOnly: boolean): Promise<
     store.progress = null;
     await Dialogs.Error({ Title: "Hash", Message: errMsg(e) });
   }
+}
+
+export function openBrowser(): void {
+  if (!ethicsAccepted()) {
+    store.showEthics = true;
+    return;
+  }
+  store.showBrowser = true;
 }
 
 export async function preferencesChanged(next: Preferences): Promise<void> {

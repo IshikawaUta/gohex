@@ -14,6 +14,8 @@
   import Preferences from "./lib/dialogs/Preferences.svelte";
   import Disk from "./lib/dialogs/Disk.svelte";
   import Carve from "./lib/dialogs/Carve.svelte";
+  import Ethics from "./lib/dialogs/Ethics.svelte";
+  import Browser from "./lib/dialogs/Browser.svelte";
 
   let doc = $derived(store.active);
   let ready = $state(false);
@@ -87,11 +89,22 @@
 
   function onGlobalKey(e: KeyboardEvent): void {
     if (e.key === "Escape") {
-      if (store.showPrefs || store.showAbout || store.showDisk || store.showCarve) {
+      if (
+        store.showPrefs ||
+        store.showAbout ||
+        store.showDisk ||
+        store.showCarve ||
+        store.showBrowser
+      ) {
         store.showPrefs = false;
         store.showAbout = false;
         store.showDisk = false;
         store.showCarve = false;
+        store.showBrowser = false;
+        return;
+      }
+      if (store.showEthics) {
+        store.showEthics = false;
         return;
       }
       if (store.findOpen) store.findOpen = false;
@@ -216,6 +229,12 @@
   {/if}
   {#if store.showCarve}
     <Carve />
+  {/if}
+  {#if store.showEthics}
+    <Ethics onaccept={() => (store.showBrowser = true)} />
+  {/if}
+  {#if store.showBrowser}
+    <Browser />
   {/if}
 </div>
 

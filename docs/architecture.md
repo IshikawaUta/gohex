@@ -12,7 +12,7 @@ later stages plug in.
 │ frontend/            Svelte 5 + TypeScript (Wails webview) │
 │   virtual hex grid · tabs · find panel · dialogs · i18n    │
 ├──────────────────── generated bindings ────────────────────┤
-│ internal/service     RPC façade (47 methods, events)        │
+│ internal/service     RPC façade (50 methods, events)        │
 │   documents, search, hashing, images, partitions, fs, ...  │
 ├────────────────────────────────────────────────────────────┤
 │ internal/hex         Document: journal, undo/redo, search  │
@@ -21,6 +21,8 @@ later stages plug in.
 │ internal/image       image containers (raw, E01, VHD, ...) │
 │ internal/fs          read-only FAT/NTFS/ext/exFAT/ISO view │
 │ internal/recovery    signature-based file carving          │
+│ internal/browser     Chrome/Firefox/Safari artefact reader │
+│ internal/sqlite      read-only SQLite + WAL merge (no cgo) │
 │ internal/encoding    text codecs, Intel-HEX, S-records     │
 │ internal/hash        sha*, md5, crc32/c, blake3, xxhash64  │
 │ internal/audit       append-only audit log (0600)          │
@@ -132,6 +134,42 @@ The service exposes `CarveTypes`, `CarveScan` (with `progress` events) and
 `CarveExport`; the export writes with `O_EXCL` and records a SHA-256 audit
 entry like every other extraction.
 
+### Browser artifacts
+
+`internal/browser` reconstructs what a browser recorded — history, downloads,
+bookmarks — without ever touching credentials, cookies or form data. It is
+built in three layers:
+
+- **`internal/sqlite`** is a zero-dependency read-only reader for SQLite
+  files. It parses the header, walks b-trees page by page, decodes cell
+  payloads including overflow chains, and honours WAL by merging committed
+  frames over the main image in memory — the database on disk is never
+  written to or checkpointed. Rollback journals are detected and reported as
+  a warning instead of being applied. There is no SQL engine: a table is
+  scanned in full and filtered in Go, which keeps the dependency surface at
+  zero and the parser inspectable. That also matters for CI: the build must
+  stay `CGO_ENABLED=0`-clean, which rules out `mattn/go-sqlite3`.
+- **Readers** (`chrome.go`, `firefox.go`, `safari.go`) map each vendor's
+  schema: Chromium's `urls`/`visits`/`downloads`/`downloads_url_chains` with
+  its 1601 epoch and JSON `Bookmarks` file; Firefox's `places.sqlite` with
+  its annotations-based downloads and `dateAdded` bookmark columns; Safari's
+  `history_items`/`history_visits` join performed in Go because the driver
+  cannot be relied on. Every timestamp is normalised to `time.Time` in UTC.
+- **`Report`** is the single value the service consumes: three slices plus a
+  `Warnings` list, so a partially damaged profile yields what could be read
+  rather than nothing at all.
+
+Missing tables become warnings through `absorb`, missing files become
+`ErrNotFound`, and an unrecognised `Browser` value is an error rather than a
+silent guess. The `Browser` and `BookmarkKind` types are string enums because
+they cross the JSON boundary to the front end — an iota would force the UI to
+mirror the constant order.
+
+The service exposes `BrowserProfiles`, `BrowserRead` and `BrowserExport`;
+both read and export are audited (`op=browser`, `mode=browser_<kind>`), the
+export writes with `O_EXCL` and records a SHA-256, and the GUI gates the
+dialog behind a one-time ethics notice required by `legal.md`.
+
 ### Service events
 
 The service emits `progress` events (`op`, `done`) for long operations
@@ -170,16 +208,15 @@ re-render. The store is the only shared mutable state.
 |---|---|---|
 | 1 ✅ | Hex editor core + GUI shell | `core`, `hex`, `encoding`, `hash`, `audit`, `config`, `service` |
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
-| 3 ◐ | Carving is done (scanner + service APIs + GUI). Case management & reports, browser artifacts, and HFS+/APFS still to come | `recovery`, `forensics`, `browser`, `dump` |
+| 3 ◐ | Carving and browser artifacts are done. Case management & reports and HFS+/APFS still to come | `recovery`, `browser`, `forensics`, `dump` |
 | 4 | Memory viewer (read-only), crash-dump analyzer | `memory` |
 | 5 | Scripting, utilities, packaging, signing, configurable keymap engine | `script`, `template`, `update` |
 
-Stage 3 ships `internal/recovery`; `internal/forensics`, `internal/browser`
+Stage 3 ships `internal/recovery` and `internal/browser`. `internal/forensics`
 and `internal/dump` still hold only their planned sub-directory layout, which
 is for **resources rather than Go packages** — report templates under
-`forensics/report`, per-browser artifact definitions under `browser/chrome`
-and so on. The Go code stays at the package root because `case` is not a legal
-Go package name. HFS+ and APFS are intentionally deferred to the rest of
+`forensics/report` and so on. The Go code stays at the package root because
+`case` is not a legal Go package name. HFS+ and APFS are intentionally deferred to the rest of
 stage 3: admitting a half-working parser would be worse than saying "not yet
 supported".
 Non-goal forever: anti-forensic features, credential extraction, stealth —

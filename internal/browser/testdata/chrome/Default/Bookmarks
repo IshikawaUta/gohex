@@ -1,0 +1,38 @@
+{
+  "checksum": "fixture",
+  "roots": {
+    "bookmark_bar": {
+      "children": [
+        {
+          "children": [
+            {
+              "date_added": "13349793600000000",
+              "name": "Go Blog",
+              "type": "url",
+              "url": "https://go.dev/blog/"
+            }
+          ],
+          "date_added": "13349793600000000",
+          "name": "News",
+          "type": "folder"
+        },
+        {
+          "date_added": "13349793600000000",
+          "name": "Example",
+          "type": "url",
+          "url": "https://example.com/"
+        }
+      ],
+      "date_added": "13349793600000000",
+      "name": "Bookmarks bar",
+      "type": "folder"
+    },
+    "other": {
+      "children": [],
+      "date_added": "0",
+      "name": "Other bookmarks",
+      "type": "folder"
+    }
+  },
+  "version": 1
+}

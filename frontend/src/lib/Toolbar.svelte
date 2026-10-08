@@ -49,6 +49,9 @@
   <button class="tb" onclick={() => (store.showCarve = true)} title="Carve files out of an image">
     Carve
   </button>
+  <button class="tb" onclick={() => A.openBrowser()} title="Browser history, downloads, bookmarks">
+    Browser
+  </button>
   <span class="sep"></span>
   <button
     class="tb"

@@ -12,6 +12,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as browser$0 from "../browser/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as config$0 from "../config/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -23,6 +26,35 @@ import * as recovery$0 from "../recovery/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
+
+/**
+ * BrowserExport re-reads a profile and writes one of its artefacts to
+ * dstPath, which must not already exist. The file is hashed and both the
+ * successful and the failed export are recorded in the audit log, so a report
+ * produced from this tool carries a verifiable fingerprint.
+ */
+export function BrowserExport(p: browser$0.Profile, kind: string, format: string, dstPath: string): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(3638297104, p, kind, format, dstPath);
+}
+
+/**
+ * BrowserProfiles lists the browser profiles installed below home. An empty
+ * home means the current user's own home directory. Listing reads directory
+ * names only: no browser database is opened, so this needs no audit record.
+ */
+export function BrowserProfiles(home: string): $CancellablePromise<browser$0.Profile[] | null> {
+    return $Call.ByID(1432359060, home);
+}
+
+/**
+ * BrowserRead extracts the history, downloads and bookmarks of one profile.
+ * The databases are opened read-only and a write-ahead log is interpreted
+ * rather than checkpointed, so the evidence is left exactly as found. The
+ * access itself is recorded in the audit log.
+ */
+export function BrowserRead(p: browser$0.Profile): $CancellablePromise<browser$0.Report> {
+    return $Call.ByID(714334138, p);
+}
 
 /**
  * CarveExport writes one recovered object from path to dstPath. The destination

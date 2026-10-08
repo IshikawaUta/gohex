@@ -108,6 +108,28 @@ the scanned range. Leave it off unless you know the image is cut short — most
 such hits are false positives. Recovery is best-effort: a file whose header and
 footer were both overwritten cannot be brought back.
 
+## Browser artifacts
+
+Toolbar → **Browser** reads browsing artefacts out of the profiles GoHex finds
+on disk. The first time you open it you must acknowledge an ethics notice:
+this module is for authorized examination only, and it never reads credentials,
+cookies, autofill or form data.
+
+1. **Home root** defaults to your own home directory; **Choose home…** points
+   it elsewhere — for example a mounted evidence image with a `home/` tree.
+2. **Rescan** lists every profile found (Chrome/Chromium/Edge/Brave,
+   Firefox, Safari) and **Read profile** loads it.
+3. The **History**, **Downloads** and **Bookmarks** tabs each carry their own
+   counts and a **Filter…** box.
+4. **Export…** writes the visible tab as CSV or JSON; the file is created new
+   (never overwritten), its SHA-256 is recorded in the audit log, and it
+   carries the profile path and any warnings in its header or JSON envelope.
+
+Some profiles are reported with warnings rather than failing outright — a
+Firefox profile without an annotation, or a Safari database whose title column
+is missing, still yields everything else. Read-only: no database is modified,
+checkpointed or repaired.
+
 ## Preferences (⚙ or `Ctrl+,`)
 
 | Setting | Notes |

@@ -40,6 +40,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   object are not double-reported, and random data yields nothing. Exposed as
   `CarveTypes`/`CarveScan`/`CarveExport` with progress events and a GUI carve
   panel.
+- **Browser artifacts** (`internal/browser`, `internal/sqlite`): a
+  zero-dependency read-only SQLite reader — b-tree walk, overflow payloads and
+  WAL frame merging without writing to the file — behind Chrome/Chromium,
+  Firefox and Safari readers for history, downloads and bookmarks. Exposed as
+  `BrowserProfiles`/`BrowserRead`/`BrowserExport` with CSV and JSON export,
+  SHA-256 audit records, a GUI browser panel, and a one-time ethics notice as
+  required by `docs/legal.md`. No credential, cookie or form-data extraction.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 
