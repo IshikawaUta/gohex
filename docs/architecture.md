@@ -19,7 +19,7 @@ later stages plug in.
 │ internal/core        Sources: files, mmap, windowed reads  │
 │ internal/disk        MBR / EBR / GPT partition tables      │
 │ internal/image       image containers (raw, E01, VHD, ...) │
-│ internal/memory      memory captures (LiME, raw)           │
+│ internal/memory      memory dumps (LiME, ELF core, MDMP)  │
 │ internal/fs          read-only FAT/NTFS/ext/ISO/HFS+/APFS  │
 │ internal/recovery    signature-based file carving          │
 │ internal/browser     Chrome/Firefox/Safari artefact reader │
@@ -110,19 +110,22 @@ listings do not re-parse the superblock) and released by `App.Close`.
 `FsExport` writes to a destination that must not already exist and records
 the SHA-256 of the copy in the audit log.
 
-### Memory captures
+### Memory captures & crash dumps
 
-`internal/memory` opens RAM captures read-only and exposes their segment
-map. LiME v1 files (magic `EMiL`) are walked as a chain of 32-byte range
-headers — `(header, end-start+1 payload bytes)` repeated to the end of the
-file — so every segment keeps its physical range and file offset, and
-`Locate` maps a physical address onto the byte offset holding it; headerless
-raw dumps fall back to a single segment without an address map. Detection is
-magic-based like `internal/image` and nothing is ever written to the
-capture. The service surfaces it as `MemoryInfo`/`MemoryLocate` behind the
-one-time ethics notice `docs/legal.md` requires. AVML and crash dumps
-(minidump, `PAGEDU64`, ELF core) are still to come with the crash-dump
-analyzer.
+`internal/memory` opens RAM captures and crash dumps read-only and exposes
+their address segment map. LiME v1 files (magic `EMiL`) are walked as a
+chain of 32-byte range headers — `(header, end-start+1 payload bytes)`
+repeated to the end of the file — so every segment keeps its physical range
+and file offset; Linux ELF core dumps contribute their `PT_LOAD` program
+headers as virtual ranges; Windows minidumps take theirs from the
+`Memory64List` stream or, failing that, the classic `MemoryList` stream.
+`Locate` maps an address onto the byte offset holding it, and headerless
+raw dumps fall back to a single segment without an address map. Detection
+is magic-based like `internal/image`, truncated dumps are clamped to the
+bytes that exist, and nothing is ever written to the capture. The service
+surfaces it as `MemoryInfo`/`MemoryLocate` behind the one-time ethics
+notice `docs/legal.md` requires. Windows kernel dumps (`PAGEDU64`/
+`PAGEDUMP`) and AVML are detected but not yet parsed (roadmap stage 4).
 
 ### Search
 
@@ -278,7 +281,7 @@ re-render. The store is the only shared mutable state.
 | 1 ✅ | Hex editor core + GUI shell | `core`, `hex`, `encoding`, `hash`, `audit`, `config`, `service` |
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
 | 3 ◐ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems and multi-segment E01/L01 image sets are done. `internal/dump` still holds only its planned layout | `recovery`, `browser`, `forensics`, `dump` |
-| 4 ◐ | Memory viewer (read-only) for LiME/raw captures is done; crash-dump analyzer still to come | `memory` |
+| 4 ◐ | Memory viewer & crash-dump analyzer: LiME/raw, ELF core and Windows minidump done; Windows kernel dumps + AVML still to come | `memory` |
 | 5 | Scripting, utilities, packaging, signing, configurable keymap engine | `script`, `template`, `update` |
 
 Stage 3 ships `internal/recovery`, `internal/browser` and `internal/forensics`.

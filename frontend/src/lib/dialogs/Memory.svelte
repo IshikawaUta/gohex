@@ -56,7 +56,7 @@
 
   function parseNum(raw: string): number {
     const text = raw.trim();
-    if (!text) throw new Error("Enter a physical address, e.g. 0x1000");
+    if (!text) throw new Error("Enter an address, e.g. 0x1000");
     const base = /^0[xX]/.test(text) ? 16 : 10;
     const n = parseInt(base === 16 ? text.slice(2) : text, base);
     if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
@@ -66,14 +66,14 @@
   }
 
   async function locate(): Promise<void> {
-    if (!path || !cap?.hasPhys) return;
+    if (!path || !cap?.hasMap) return;
     busy = true;
     error = "";
     try {
       const phys = parseNum(physText);
       located = await svc.MemoryLocate(path, phys);
       sel = located.segment;
-      flash(`${fmtPhys(phys)} → file offset ${fmtOffset(located.offset)}`);
+      flash(`${fmtAddr(phys)} → file offset ${fmtOffset(located.offset)}`);
     } catch (e) {
       located = null;
       error = errMsg(e);
@@ -128,7 +128,7 @@
     return `0x${n.toString(16).toUpperCase().padStart(8, "0")}`;
   }
 
-  function fmtPhys(n: number): string {
+  function fmtAddr(n: number): string {
     return `0x${n.toString(16).toUpperCase().padStart(12, "0")}`;
   }
 </script>
@@ -161,12 +161,12 @@
         <span class="badge">{cap.format.toUpperCase()}</span>
         <span class="dim">{fmtSize(cap.size)}</span>
         <span class="dim">
-          {cap.hasPhys ? "physical address map" : "no address map — headerless dump"}
+          {cap.hasMap ? "address map" : "no address map — headerless dump"}
         </span>
         <span class="spacer"></span>
-        {#if cap.hasPhys}
+        {#if cap.hasMap}
           <label class="field">
-            <span>Physical address</span>
+            <span>Address</span>
             <input
               class="mono"
               placeholder="0x1000"
@@ -189,7 +189,7 @@
       <thead>
         <tr>
           <th>#</th>
-          <th>Physical range</th>
+          <th>Address range</th>
           <th>Length</th>
           <th>File offset</th>
         </tr>
@@ -206,7 +206,7 @@
           <tr class:selected={sel === s.index} class="click" onclick={() => (sel = s.index)}>
             <td>{s.index}</td>
             <td class="mono">
-              {cap?.hasPhys ? `${fmtPhys(s.physStart)} – ${fmtPhys(s.physEnd - 1)}` : "—"}
+              {cap?.hasMap ? `${fmtAddr(s.addrStart)} – ${fmtAddr(s.addrEnd - 1)}` : "—"}
             </td>
             <td>{fmtSize(s.length)}</td>
             <td class="mono">{fmtOffset(s.offset)}</td>

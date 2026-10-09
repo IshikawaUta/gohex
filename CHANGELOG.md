@@ -74,8 +74,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   back to the exact byte — plus a headerless raw fallback, surfaced through
   `MemoryInfo`/`MemoryLocate`, a GUI memory panel that opens any segment as
   hex, and the one-time ethics notice as required by `docs/legal.md`.
-  Strictly read-only; AVML and crash dumps are still to come with the
-  crash-dump analyzer.
+  Strictly read-only.
+- **Crash dumps** (`internal/memory`): read-only parsing of Linux ELF core
+  dumps (`ET_CORE` `PT_LOAD` segments) and Windows minidumps (`Memory64List`
+  / `MemoryList` streams) with virtual-address locate through the same
+  `MemoryInfo`/`MemoryLocate` APIs and memory panel; truncated dumps are
+  clamped to the bytes that exist, and Windows kernel dumps (`PAGEDU64`) and
+  AVML report an explicit not-yet-supported error.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

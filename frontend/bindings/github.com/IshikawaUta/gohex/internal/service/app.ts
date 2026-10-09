@@ -340,22 +340,22 @@ export function ListDocuments(): $CancellablePromise<$models.DocInfo[] | null> {
 }
 
 /**
- * MemoryInfo reports the format, size and physical segment map of a memory
- * capture. The capture is opened read-only and only its parsed metadata is
- * returned; the access is recorded in the audit log.
+ * MemoryInfo reports the format, size and address segment map of a memory
+ * capture or crash dump. The capture is opened read-only and only its parsed
+ * metadata is returned; the access is recorded in the audit log.
  */
 export function MemoryInfo(path: string): $CancellablePromise<memory$0.Capture> {
     return $Call.ByID(333990465, path);
 }
 
 /**
- * MemoryLocate maps a physical address inside the capture onto a file offset
- * so the caller can open the covering bytes in the hex view. It re-reads the
+ * MemoryLocate maps an address inside the capture onto a file offset so the
+ * caller can open the covering bytes in the hex view. It re-reads the
  * capture's headers only; the access is already covered by the MemoryInfo
  * audit record, so no second record is written here.
  */
-export function MemoryLocate(path: string, phys: number): $CancellablePromise<memory$0.Location> {
-    return $Call.ByID(3212853347, path, phys);
+export function MemoryLocate(path: string, addr: number): $CancellablePromise<memory$0.Location> {
+    return $Call.ByID(3212853347, path, addr);
 }
 
 /**

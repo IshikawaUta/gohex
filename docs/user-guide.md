@@ -109,25 +109,30 @@ decode are *flagged, never guessed*: `compressed` (HFS+ decmpfs),
 `encrypted` (sealed APFS volumes), `hardlink`, `symlink` and `readonly`
 appear as attributes on the entry.
 
-## Memory captures
+## Memory captures & crash dumps
 
-Toolbar → **Memory** inspects RAM captures read-only. The first time you
-open it you must acknowledge an ethics notice: this module is for authorized
-examination only, and it never extracts credentials or live process data.
+Toolbar → **Memory** inspects RAM captures and crash dumps read-only. The
+first time you open it you must acknowledge an ethics notice: this module is
+for authorized examination only, and it never extracts credentials or live
+process data.
 
-1. **Open capture…** selects the file. LiME v1 captures (`EMiL` magic) are
-   recognised automatically and split into their physical segments; a
-   headerless raw dump opens as a single segment without an address map.
-2. The segment table lists every range: its physical start–end, byte length
+1. **Open capture…** selects the file. GoHex recognises LiME v1 captures
+   (`EMiL` magic, physical ranges), Linux ELF core dumps (virtual `PT_LOAD`
+   ranges) and Windows minidumps (virtual ranges from the memory streams);
+   a headerless dump opens as a single segment without an address map.
+2. The segment table lists every range: its start–end address, byte length
    and file offset. Select a row to **Open segment as hex**, or **Open
    capture as hex** for the whole file.
-3. Type a **Physical address** (decimal or `0x…` hex) and **Locate** to map
-   it onto the file offset holding that byte; **Open at address** loads the
-   editor window from there to the end of its segment.
+3. Type an **Address** (decimal or `0x…` hex) and **Locate** to map it onto
+   the file offset holding that byte; **Open at address** loads the editor
+   window from there to the end of its segment. Addresses are physical for
+   LiME captures and virtual for cores and minidumps — always use the
+   dump's own address space.
 
-Everything is strictly read-only — the capture is never modified. AVML and
-crash dumps (minidump, `PAGEDU64`, ELF core) are not yet supported and are
-part of the upcoming crash-dump analyzer.
+Everything is strictly read-only — the capture is never modified, and a
+truncated dump is clamped to the bytes that exist. Windows kernel dumps
+(`PAGEDU64`/`PAGEDUMP`) and AVML captures are not yet supported and report
+an explicit error (roadmap stage 4).
 
 ## Carving
 

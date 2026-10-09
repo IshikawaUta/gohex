@@ -10,14 +10,14 @@ export interface Capture {
     "size": number;
 
     /**
-     * physical address map available
+     * address map available
      */
-    "hasPhys": boolean;
+    "hasMap": boolean;
     "segments": Segment[] | null;
 }
 
 /**
- * Location is where a physical address lands inside the capture file.
+ * Location is where an address lands inside the capture file.
  */
 export interface Location {
     /**
@@ -32,9 +32,10 @@ export interface Location {
 }
 
 /**
- * Segment is one contiguous run of physical memory stored in the capture.
- * For mapped segments Length == PhysEnd - PhysStart; PhysEnd is exclusive.
- * Captures without an address map (raw) carry Offset/Length only.
+ * Segment is one contiguous run of memory stored in the capture. For mapped
+ * segments Length == AddrEnd - AddrStart; AddrEnd is exclusive. The address
+ * range is physical for LiME captures and virtual for ELF cores and
+ * minidumps. Captures without an address map (raw) carry Offset/Length only.
  */
 export interface Segment {
     "index": number;
@@ -44,10 +45,10 @@ export interface Segment {
      */
     "offset": number;
     "length": number;
-    "physStart": number;
+    "addrStart": number;
 
     /**
      * exclusive; 0 when the format carries no map
      */
-    "physEnd": number;
+    "addrEnd": number;
 }

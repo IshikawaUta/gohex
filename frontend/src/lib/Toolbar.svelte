@@ -52,7 +52,7 @@
   <button class="tb" onclick={() => A.openBrowser()} title="Browser history, downloads, bookmarks">
     Browser
   </button>
-  <button class="tb" onclick={() => A.openMemory()} title="Memory capture viewer (read-only)">
+  <button class="tb" onclick={() => A.openMemory()} title="Memory capture & crash dump viewer (read-only)">
     Memory
   </button>
   <button class="tb" onclick={() => (store.showCase = true)} title="Forensic case, evidence and report">

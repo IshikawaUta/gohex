@@ -8,9 +8,9 @@ import (
 	"github.com/IshikawaUta/gohex/internal/memory"
 )
 
-// MemoryInfo reports the format, size and physical segment map of a memory
-// capture. The capture is opened read-only and only its parsed metadata is
-// returned; the access is recorded in the audit log.
+// MemoryInfo reports the format, size and address segment map of a memory
+// capture or crash dump. The capture is opened read-only and only its parsed
+// metadata is returned; the access is recorded in the audit log.
 func (a *App) MemoryInfo(path string) (memory.Capture, error) {
 	if path == "" {
 		return memory.Capture{}, errors.New("service: memory: empty path")
@@ -40,11 +40,11 @@ func (a *App) MemoryInfo(path string) (memory.Capture, error) {
 	return mc, nil
 }
 
-// MemoryLocate maps a physical address inside the capture onto a file offset
-// so the caller can open the covering bytes in the hex view. It re-reads the
+// MemoryLocate maps an address inside the capture onto a file offset so the
+// caller can open the covering bytes in the hex view. It re-reads the
 // capture's headers only; the access is already covered by the MemoryInfo
 // audit record, so no second record is written here.
-func (a *App) MemoryLocate(path string, phys int64) (memory.Location, error) {
+func (a *App) MemoryLocate(path string, addr int64) (memory.Location, error) {
 	if path == "" {
 		return memory.Location{}, errors.New("service: memory: empty path")
 	}
@@ -52,5 +52,5 @@ func (a *App) MemoryLocate(path string, phys int64) (memory.Location, error) {
 	if err != nil {
 		return memory.Location{}, err
 	}
-	return mc.Locate(phys)
+	return mc.Locate(addr)
 }
