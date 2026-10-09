@@ -8,7 +8,8 @@
 // Supported container formats:
 //
 //   - raw                     byte-for-byte dump, read directly
-//   - EWF/E01                 Expert Witness Compression Format (read natively)
+//   - EWF/E01, L01            Expert Witness Compression Format, multi-segment
+//     and logical evidence sets (read natively)
 //   - VPC/VHD                 fixed and dynamic Microsoft VHD (read natively)
 //   - QCOW2, VMDK, VHDX       delegated to qemu-img, which flattens the image
 //     into a temporary raw file for the lifetime of the reader
@@ -28,6 +29,7 @@ import (
 const (
 	FormatRaw   = "raw"
 	FormatEWF   = "ewf"
+	FormatL01   = "l01"
 	FormatVHD   = "vhd"
 	FormatQCOW2 = "qcow2"
 	FormatVMDK  = "vmdk"
@@ -88,7 +90,7 @@ func open(path, forced string) (Reader, error) {
 	switch format {
 	case FormatRaw:
 		return openRaw(path)
-	case FormatEWF:
+	case FormatEWF, FormatL01:
 		return openEWF(path)
 	case FormatVHD:
 		return openVHD(path)
@@ -121,8 +123,8 @@ func detect(head []byte, path string) (string, error) {
 		return FormatEWF, nil
 	case need(8) && string(head[:8]) == "EVF2\r\n\x81\x00":
 		return "", fmt.Errorf("image: EWF2 (Ex01) not yet supported (roadmap stage 3)")
-	case need(8) && string(head[:8]) == "MVF\x09\r\n\xff\x00":
-		return "", fmt.Errorf("image: EWF-L01 (L01) not yet supported (roadmap stage 3)")
+	case need(8) && (string(head[:8]) == "LVF\x09\r\n\xff\x00" || string(head[:8]) == "MVF\x09\r\n\xff\x00"):
+		return FormatL01, nil
 	case need(4) && string(head[:4]) == "QFI\xfb":
 		return FormatQCOW2, nil
 	case need(4) && string(head[:4]) == "KDMV":

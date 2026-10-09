@@ -90,8 +90,10 @@ appears in the status bar (`SHA-256: …`). The list includes *file* hashes
 Toolbar → **Disk** opens the disk-image browser and walks a medium
 read-only.
 
-1. **Open image…** selects the container (RAW, E01, VHD, QCOW2, VMDK,
-   VHDX — `qemu-img` is needed for the last three).
+1. **Open image…** selects the container (RAW, E01, L01, VHD, QCOW2,
+   VMDK, VHDX — `qemu-img` is needed for the last three). For multi-segment
+   E01/L01 sets it does not matter which segment you pick; GoHex finds the
+   rest by naming convention.
 2. MBR/GPT partitions are listed automatically; pick one to browse, or
    browse the whole medium when the image has no partition table.
 3. Click through directories like a file manager; select a file to
@@ -114,7 +116,7 @@ directory — deleted, orphaned, or living in an image whose file system you
 cannot mount.
 
 1. **Open image…** selects the evidence (any container GoHex can read: RAW,
-   E01, VHD, QCOW2, VMDK, VHDX, or a plain file).
+   E01, L01, VHD, QCOW2, VMDK, VHDX, or a plain file).
 2. Optionally narrow **From** / **To** (decimal or `0x…` hex) to a single
    partition instead of the whole medium.
 3. Toggle the types to look for. `⌁` types end at a footer (JPEG, PNG, GIF,

@@ -5,6 +5,7 @@ import (
 	"compress/zlib"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -107,7 +108,8 @@ func TestDetectMagic(t *testing.T) {
 	}{
 		{"ewf", append([]byte(ewfSignature), 1, 0, 1, 0, 0), FormatEWF, ""},
 		{"ex01", []byte("EVF2\r\n\x81\x00"), "", "EWF2 (Ex01)"},
-		{"l01", []byte("MVF\x09\r\n\xff\x00"), "", "EWF-L01 (L01)"},
+		{"l01", []byte("LVF\x09\r\n\xff\x00"), FormatL01, ""},
+		{"l01-mvf", []byte("MVF\x09\r\n\xff\x00"), FormatL01, ""},
 		{"qcow2", []byte("QFI\xfb\x00\x00\x00\x03"), FormatQCOW2, ""},
 		{"vmdk-sparse", []byte("KDMV\x01\x00\x00\x00"), FormatVMDK, ""},
 		{"vmdk-desc", []byte("# Disk DescriptorFile\n"), FormatVMDK, ""},
@@ -203,15 +205,10 @@ func TestOpenErrors(t *testing.T) {
 }
 
 func TestOpenUnsupportedContainerFamilies(t *testing.T) {
-	for name, sig := range map[string]string{
-		"ex01": "EVF2\r\n\x81\x00",
-		"l01":  "MVF\x09\r\n\xff\x00",
-	} {
-		p := writeImg(t, name, []byte(sig+"\x01\x00\x01\x00\x00"))
-		_, err := Open(p)
-		if err == nil || !strings.Contains(err.Error(), "roadmap stage 3") {
-			t.Errorf("Open(%s) = %v, want roadmap stage 3 error", name, err)
-		}
+	p := writeImg(t, "ex01", []byte("EVF2\r\n\x81\x00\x01\x00\x01\x00\x00"))
+	_, err := Open(p)
+	if err == nil || !strings.Contains(err.Error(), "roadmap stage 3") {
+		t.Errorf("Open(ex01) = %v, want roadmap stage 3 error", err)
 	}
 }
 
@@ -1014,4 +1011,322 @@ func TestEWFUnusableChunk(t *testing.T) {
 	if _, err := r.ReadAt(make([]byte, 16), 0); err == nil {
 		t.Fatal("want an error when a stored chunk is unusable")
 	}
+}
+
+// ---------------------------------------------------------- multi-segment
+
+// ewfBuildSegment assembles one segment file image: the 13-byte file header,
+// an optional volume section, a "sectors" section holding this segment's
+// chunks, its table and the terminator. Chunk offsets are absolute within
+// this segment (table base 0), matching EWF1 sets.
+func ewfBuildSegment(t *testing.T, sig string, claim int, term string, withVolume bool,
+	sectors uint64, stored [][]byte, compressed []bool, big bool) []byte {
+	t.Helper()
+	const bps, spc = 512, 64
+	n := len(stored)
+
+	put32 := func(b []byte, v uint32) {
+		if big {
+			binary.BigEndian.PutUint32(b, v)
+		} else {
+			binary.LittleEndian.PutUint32(b, v)
+		}
+	}
+	put64 := func(b []byte, v uint64) {
+		if big {
+			binary.BigEndian.PutUint64(b, v)
+		} else {
+			binary.LittleEndian.PutUint64(b, v)
+		}
+	}
+	desc := func(typ string, next, size int64) []byte {
+		d := make([]byte, ewfDescSize)
+		copy(d, typ)
+		put64(d[16:], uint64(next))
+		put64(d[24:], uint64(size))
+		return d
+	}
+
+	pos := int64(ewfHeaderSize)
+	volPos, volSize := int64(0), int64(0)
+	if withVolume {
+		volPos = pos
+		volSize = ewfDescSize + 1052 // EnCase-style volume payload
+		pos += volSize
+	}
+	secPos := pos
+	secSize := int64(ewfDescSize)
+	for _, s := range stored {
+		secSize += int64(len(s))
+	}
+	pos += secSize
+	tblPos := pos
+	tblSize := int64(ewfDescSize + ewfTableHdr + 4*n)
+	pos += tblSize
+	termPos := pos
+
+	img := make([]byte, termPos+ewfDescSize)
+	copy(img, sig)
+	img[8] = 0x01
+	binary.LittleEndian.PutUint16(img[9:], uint16(claim))
+
+	if withVolume {
+		copy(img[volPos:], desc("volume", secPos, volSize))
+		vp := img[volPos+ewfDescSize:]
+		vp[0] = 1
+		put32(vp[4:], uint32(n))
+		put32(vp[8:], spc)
+		put32(vp[12:], bps)
+		put64(vp[16:], sectors)
+		vp[52] = 1 // compression level
+	}
+
+	copy(img[secPos:], desc("sectors", tblPos, secSize))
+	off := secPos + ewfDescSize
+	chunkOff := make([]int64, n)
+	for i, s := range stored {
+		chunkOff[i] = off
+		copy(img[off:], s)
+		off += int64(len(s))
+	}
+
+	copy(img[tblPos:], desc("table", termPos, tblSize))
+	th := img[tblPos+ewfDescSize:]
+	put32(th[0:], uint32(n))
+	for i := 0; i < n; i++ {
+		v := uint32(chunkOff[i])
+		if compressed[i] {
+			v |= ewfCompressMSB
+		}
+		put32(th[ewfTableHdr+i*4:], v)
+	}
+
+	copy(img[termPos:], desc(term, termPos, 0))
+	return img
+}
+
+// buildE01Set writes a multi-segment E01 image (an L01 set when logical is
+// set) and returns the segment paths in order. Chunks are distributed
+// contiguously: segment k holds chunks [k*n/nSeg, (k+1)*n/nSeg). Only
+// segment 1 carries the volume section; every segment but the last ends in a
+// "next" terminator.
+func buildE01Set(t *testing.T, data []byte, nSeg int, big bool, logical bool) []string {
+	t.Helper()
+	if nSeg < 1 {
+		t.Fatalf("nSeg = %d", nSeg)
+	}
+	stored, compressed := ewfChunks(t, data)
+	n := len(stored)
+	if nSeg > n {
+		t.Fatalf("%d segments for only %d chunks", nSeg, n)
+	}
+	sig, series := ewfSignature, "E"
+	if logical {
+		sig, series = ewfSignatureL01, "L"
+	}
+	sectors := uint64(len(data) / 512)
+
+	dir := t.TempDir()
+	paths := make([]string, nSeg)
+	for k := 0; k < nSeg; k++ {
+		lo, hi := k*n/nSeg, (k+1)*n/nSeg
+		term := "next"
+		if k == nSeg-1 {
+			term = "done"
+		}
+		img := ewfBuildSegment(t, sig, k+1, term, k == 0, sectors,
+			stored[lo:hi], compressed[lo:hi], big)
+		p := filepath.Join(dir, fmt.Sprintf("image.%s%02d", series, k+1))
+		if err := os.WriteFile(p, img, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		paths[k] = p
+	}
+	return paths
+}
+
+func TestEWFMultiSegment(t *testing.T) {
+	data := ewfPayload(160) // 3 chunks of 32 KiB
+	cs := int64(512 * 64)
+	for _, big := range []bool{false, true} {
+		for _, nSeg := range []int{2, 3} {
+			name := fmt.Sprintf("seg%d/little-endian", nSeg)
+			if big {
+				name = fmt.Sprintf("seg%d/big-endian", nSeg)
+			}
+			t.Run(name, func(t *testing.T) {
+				paths := buildE01Set(t, data, nSeg, big, false)
+				r, err := Open(paths[0])
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer r.Close()
+				if r.Format() != FormatEWF {
+					t.Fatalf("Format() = %q, want ewf", r.Format())
+				}
+				if r.Size() != int64(len(data)) {
+					t.Fatalf("Size() = %d, want %d", r.Size(), len(data))
+				}
+				if got := readRange(t, r, 0, len(data)); !bytes.Equal(got, data) {
+					t.Fatal("multi-segment payload mismatch")
+				}
+				for k := 1; k < nSeg; k++ {
+					off := int64(k)*cs - 2
+					if got := readRange(t, r, off, 8); !bytes.Equal(got, data[off:off+8]) {
+						t.Fatalf("read across segment boundary at %d mismatch", off)
+					}
+				}
+				checkBounds(t, r)
+			})
+		}
+	}
+}
+
+func TestEWFMultiSegmentOpenAny(t *testing.T) {
+	data := ewfPayload(160)
+	paths := buildE01Set(t, data, 3, false, false)
+	for _, p := range paths {
+		t.Run(filepath.Base(p), func(t *testing.T) {
+			r, err := Open(p)
+			if err != nil {
+				t.Fatalf("Open(%s): %v", filepath.Base(p), err)
+			}
+			defer r.Close()
+			if r.Format() != FormatEWF {
+				t.Fatalf("Format() = %q, want ewf", r.Format())
+			}
+			if got := readRange(t, r, 0, len(data)); !bytes.Equal(got, data) {
+				t.Fatal("payload mismatch")
+			}
+			checkBounds(t, r)
+		})
+	}
+}
+
+func TestEWFL01(t *testing.T) {
+	data := ewfPayload(160)
+	t.Run("single", func(t *testing.T) {
+		paths := buildE01Set(t, data, 1, false, true)
+		r, err := Open(paths[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Close()
+		if r.Format() != FormatL01 {
+			t.Fatalf("Format() = %q, want l01", r.Format())
+		}
+		if got := readRange(t, r, 0, len(data)); !bytes.Equal(got, data) {
+			t.Fatal("L01 payload mismatch")
+		}
+		checkBounds(t, r)
+	})
+	t.Run("multi", func(t *testing.T) {
+		paths := buildE01Set(t, data, 3, false, true)
+		r, err := Open(paths[2]) // open the last segment
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Close()
+		if r.Format() != FormatL01 {
+			t.Fatalf("Format() = %q, want l01", r.Format())
+		}
+		if got := readRange(t, r, 0, len(data)); !bytes.Equal(got, data) {
+			t.Fatal("multi-segment L01 payload mismatch")
+		}
+		checkBounds(t, r)
+	})
+	t.Run("mvf-variant", func(t *testing.T) {
+		paths := buildE01Set(t, data, 1, false, true)
+		b, err := os.ReadFile(paths[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		copy(b, ewfSignatureMV)
+		if err := os.WriteFile(paths[0], b, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		r, err := Open(paths[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Close()
+		if r.Format() != FormatL01 {
+			t.Fatalf("Format() = %q, want l01", r.Format())
+		}
+		if got := readRange(t, r, 0, len(data)); !bytes.Equal(got, data) {
+			t.Fatal("MVF-variant L01 payload mismatch")
+		}
+	})
+}
+
+func TestEWFSegmentSetErrors(t *testing.T) {
+	data := ewfPayload(160)
+
+	mutate := func(t *testing.T, p string, fn func([]byte)) {
+		t.Helper()
+		b, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fn(b)
+		if err := os.WriteFile(p, b, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wantErr := func(t *testing.T, err error, sub string) {
+		t.Helper()
+		if err == nil || !strings.Contains(err.Error(), sub) {
+			t.Fatalf("err = %v, want error containing %q", err, sub)
+		}
+	}
+
+	t.Run("missing-middle", func(t *testing.T) {
+		paths := buildE01Set(t, data, 3, false, false)
+		if err := os.Remove(paths[1]); err != nil {
+			t.Fatal(err)
+		}
+		_, err := Open(paths[0])
+		wantErr(t, err, "segment number mismatch")
+	})
+	t.Run("claim-mismatch", func(t *testing.T) {
+		paths := buildE01Set(t, data, 3, false, false)
+		mutate(t, paths[1], func(b []byte) {
+			binary.LittleEndian.PutUint16(b[9:], 5)
+		})
+		_, err := Open(paths[0])
+		wantErr(t, err, "segment number mismatch")
+	})
+	t.Run("mixed-signature", func(t *testing.T) {
+		paths := buildE01Set(t, data, 2, false, false)
+		mutate(t, paths[1], func(b []byte) {
+			copy(b, ewfSignatureL01)
+		})
+		_, err := Open(paths[0])
+		wantErr(t, err, "different signature")
+	})
+	t.Run("stray-complete-set", func(t *testing.T) {
+		paths := buildE01Set(t, data, 1, false, false)
+		stray := filepath.Join(filepath.Dir(paths[0]), "image.E02")
+		if err := os.WriteFile(stray, make([]byte, 64), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		_, err := Open(paths[0])
+		wantErr(t, err, "marks the set complete")
+	})
+	t.Run("missing-continuation", func(t *testing.T) {
+		paths := buildE01Set(t, data, 3, false, false)
+		if err := os.Remove(paths[2]); err != nil {
+			t.Fatal(err)
+		}
+		_, err := Open(paths[0])
+		wantErr(t, err, "missing continuation")
+	})
+	t.Run("non-series-naming", func(t *testing.T) {
+		img := make([]byte, 64)
+		copy(img, ewfSignature)
+		img[8] = 0x01
+		binary.LittleEndian.PutUint16(img[9:], 5)
+		_, err := Open(writeImg(t, "evidence.dd", img))
+		wantErr(t, err, "not an E01/L01 segment naming")
+	})
 }

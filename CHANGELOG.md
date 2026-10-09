@@ -27,9 +27,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   keyboard shortcuts, theming.
 - **CLI companion** (`cmd/gohex-cli`): hash, search, info — read-only defaults.
 - **Disk images & partitions** (`internal/image`, `internal/disk`): magic-based
-  detection of RAW, single-segment EWF/E01, native VHD and — through
-  `qemu-img` — QCOW2/VMDK/VHDX; MBR, extended/EBR and GPT parsing with
-  non-fatal warnings instead of hard failures.
+  detection of RAW, EWF/E01 and L01 sets (single- or multi-segment; segments
+  are discovered by naming convention and the whole set is read when any
+  segment is opened), native VHD and — through `qemu-img` — QCOW2/VMDK/VHDX;
+  MBR, extended/EBR and GPT parsing with non-fatal warnings instead of hard
+  failures.
 - **Read-only file systems** (`internal/fs`): FAT12/16/32, exFAT, NTFS,
   ext2/3/4 and ISO9660 listing, stat and byte reads, surfaced through a GUI
   disk panel that walks an image's partitions and exports files with a

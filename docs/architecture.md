@@ -75,16 +75,18 @@ range that a plain file provides, so every engine above it is format-agnostic:
 
 - **Detection is magic-based, never extension-based.** A `.img` that is really
   an E01 opens as E01.
-- **Native readers** for raw and single-segment EWF/E01 (both byte orders are
-  auto-detected; chunks may be zlib-compressed or stored) and for Microsoft
+- **Native readers** for raw and for EWF/E01 and L01 sets — single- or
+  multi-segment (segments are discovered by naming convention next to the
+  opened file; opening any segment reads the whole set), both byte orders
+  auto-detected, chunks zlib-compressed or stored — and for Microsoft
   VHD (fixed and dynamic; the dynamic sector bitmap ahead of every block is
   honoured).
 - **Delegated formats** (QCOW2, VMDK, VHDX) are flattened to a temporary raw
   file with `qemu-img convert`, which is removed on `Close`. These formats
   require `qemu-img` on `PATH`; `Open` says so explicitly when it is missing.
-- Multi-segment/Ex01/L01 variants are deliberately out of scope and report
-  *"not yet supported (roadmap stage 3)"* rather than pretending to parse
-  them; HFS+/APFS readers were added later in stage 3 (see below).
+- Ex01 (EWF2) and SMART `.s01` variants are deliberately out of scope and
+  report *"not yet supported (roadmap stage 3)"* rather than pretending to
+  parse them; HFS+/APFS readers were added later in stage 3 (see below).
 
 `internal/disk` parses MBR (including extended/EBR chains) and GPT into a
 `Table` with non-fatal warnings instead of hard failures, and `internal/fs`
@@ -260,7 +262,7 @@ re-render. The store is the only shared mutable state.
 |---|---|---|
 | 1 ✅ | Hex editor core + GUI shell | `core`, `hex`, `encoding`, `hash`, `audit`, `config`, `service` |
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
-| 3 ◐ | Carving, browser artifacts, case management & reports and HFS+/APFS file systems are done. Multi-segment E01/L01 still to come | `recovery`, `browser`, `forensics`, `dump` |
+| 3 ◐ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems and multi-segment E01/L01 image sets are done. `internal/dump` still holds only its planned layout | `recovery`, `browser`, `forensics`, `dump` |
 | 4 | Memory viewer (read-only), crash-dump analyzer | `memory` |
 | 5 | Scripting, utilities, packaging, signing, configurable keymap engine | `script`, `template`, `update` |
 
@@ -273,7 +275,12 @@ name. HFS+ and APFS arrived in the last stage-3 slice as eager, read-only
 parsers: admitting a half-working parser would be worse than saying "not yet
 supported", so both ship only with their full feature sets (HFS+ with the
 catalogue, extents-overflow and key-compare folding; APFS with checkpoint
-adoption, object maps, hashed directory keys and fext trees).
+adoption, object maps, hashed directory keys and fext trees). Multi-segment
+E01/L01 sets joined the image layer the same way: each segment is
+self-contained (header, sections, terminator), sets are discovered by naming
+convention (E01..E99, EAA..ZZZ, L01..L99, ...) and a wrong claim, a missing
+segment or a mixed E01/L01 set is rejected up front instead of silently
+reading short.
 Non-goal forever: anti-forensic features, credential extraction, stealth —
 see [legal.md](legal.md).
 
