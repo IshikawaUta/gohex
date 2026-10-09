@@ -36,6 +36,7 @@ later stages plug in.
 ├────────────────────────────────────────────────────────────┤
 │ pkg/version          build-time version stamp              │
 │ main.go              Wails app entry, asset embed          │
+│ cmd/gohex-cli        read-only companion CLI (hash/info/search) │
 └────────────────────────────────────────────────────────────┘
 ```
 

@@ -122,7 +122,7 @@ func detect(head []byte, path string) (string, error) {
 	case need(8) && string(head[:8]) == "EVF\x09\r\n\xff\x00":
 		return FormatEWF, nil
 	case need(8) && string(head[:8]) == "EVF2\r\n\x81\x00":
-		return "", fmt.Errorf("image: EWF2 (Ex01) not yet supported (roadmap stage 3)")
+		return "", fmt.Errorf("image: EWF2 (Ex01) not yet supported")
 	case need(8) && (string(head[:8]) == "LVF\x09\r\n\xff\x00" || string(head[:8]) == "MVF\x09\r\n\xff\x00"):
 		return FormatL01, nil
 	case need(4) && string(head[:4]) == "QFI\xfb":

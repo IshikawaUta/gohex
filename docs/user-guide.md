@@ -218,7 +218,7 @@ file, which is what chain of custody needs.
 Only one case is open at a time; **Close** releases it. Closing without
 saving discards unsaved findings, and that too is recorded in the audit log.
 
-## Automation scripts (Stage 5)
+## Automation scripts
 
 Toolbar → **Script** runs a Starlark (`.star`) script over the documents
 you already have open — triage helpers, hash lists, pattern hunts — without
@@ -258,7 +258,7 @@ log as a `script` event with the script's path, duration and outcome.
 Scripts read the *open document*, including unsaved in-memory edits, not the
 file on disk.
 
-## Structure templates (Stage 5)
+## Structure templates
 
 Toolbar → **Template** overlays a named structure definition on the active
 document — the WinHex template workflow for reading PE headers, partition
@@ -347,6 +347,23 @@ reason — the same validation runs on the `shortcuts` map in
 Actions shown as reserved (`search.replace`, `search.next`/`prev`,
 `view.theme`, `help.shortcuts`) keep their bindings for future UI.
 
+## Command-line companion
+
+`gohex-cli` is a read-only companion binary — same engines as the GUI, no
+write verbs:
+
+```
+gohex-cli hash   [-algo sha256] FILE            # md5, sha1, sha256, sha512, crc32, ...
+gohex-cli info   FILE                           # size, container format, partition table
+gohex-cli search [-hex "DE AD ?? EF" | -text foo] [-enc ascii|utf16le|utf16be] [-limit N] FILE
+```
+
+`FILE` may be a raw image or any container the GUI can open (E01/L01
+multi-segment, VHD/QCOW2/VMDK/VHDX) — detection is magic-based. `-hex`
+patterns support `??` wildcard pairs; `-text` searches for literal text in
+the chosen encoding. `search` exits 3 when nothing matched (0 hit, 1 error,
+2 usage). Output of `search` is tab-separated `0xOFFSET<TAB>LENGTH`.
+
 ## Updates
 
 GoHex never phones home. The **About** dialog (toolbar `?`) has a **Check
@@ -378,4 +395,5 @@ one JSON object per line) — see [security.md](security.md).
 - Files larger than 4 GB are supported (windowed reads, no full slurp).
 - Copy operations are capped at 16 MiB per selection.
 - Find-all returns at most 500 matches per query.
-- The CLI (`cmd/gohex-cli`) is on the roadmap (stage 5); Stage 1 is GUI-only.
+- The CLI (`cmd/gohex-cli`) provides read-only `hash`, `info` and `search`
+  (see below); write paths live in the GUI only.

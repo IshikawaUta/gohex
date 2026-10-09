@@ -15,22 +15,26 @@
 
 ## Status
 
-Stage 1 (hex editor core + GUI shell) and Stage 2 (disk images, partitions, read-only file systems) are done; Stage 3 is in progress. The full roadmap lives in [docs/architecture.md](docs/architecture.md).
+Stages 1–4 are done (hex editor core + GUI shell, disk images & partitions,
+recovery/browser/case tooling, memory forensics). Stage 5 has shipped its
+engines (scripting, templates, update check, keymap); utilities, packaging
+and signing remain. The full roadmap lives in [docs/architecture.md](docs/architecture.md).
 
 | Area | Status |
 |---|---|
 | Hex editor (open >4 GB, edit, undo/redo, search, save) | ✅ |
 | GUI shell (virtual grid, tabs, themes, shortcuts) | ✅ |
-| Disk & image reader (RAW/E01/L01/VHD/QCOW2/VMDK/VHDX, multi-segment) + partition tables | ◐ stage 2 |
+| Disk & image reader (RAW/E01/L01/VHD/QCOW2/VMDK/VHDX, multi-segment) + partition tables | ✅ stage 2 |
 | Read-only file system browsers (FAT/NTFS/ext/exFAT/ISO) | ✅ stage 2 |
 | HFS+/APFS file system support (read-only) | ✅ stage 3 |
-| Data recovery & carving | ◐ stage 3 |
-| Forensic case management & reports | ◐ stage 3 |
-| Browser artifact parser | ◐ stage 3 |
+| Data recovery & carving | ✅ stage 3 |
+| Forensic case management & reports | ✅ stage 3 |
+| Browser artifact parser | ✅ stage 3 |
 | Memory viewer & crash-dump analyzer (LiME/AVML/raw/ELF core/minidump/Windows dumps) | ✅ stage 4 |
 | Scripting engine + structure templates (sandboxed Starlark, WinHex-style overlays, GUI panels) | ✅ stage 5 |
 | Update check (opt-in GitHub releases probe) | ✅ stage 5 |
 | Configurable keymap engine (validated shortcuts, Preferences editor) | ✅ stage 5 |
+| Companion CLI `gohex-cli` (read-only hash, info, search) | ✅ stage 5 |
 | Utilities, packaging, signing | 🔜 stage 5 |
 
 ## Build & run
@@ -75,7 +79,8 @@ Cross-compiling the GUI requires the target OS toolchain (CGO); release binaries
 # confirmation, and an audit-log entry.
 ```
 
-The companion CLI (`cmd/gohex-cli`) ships in stage 5; Stage 1 is GUI-only.
+The companion CLI (`cmd/gohex-cli`) provides read-only `hash`, `info` and
+`search`; the GUI is the only place with write paths.
 
 ## Responsible use
 

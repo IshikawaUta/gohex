@@ -59,7 +59,7 @@ jobs:
 
       - name: Go tests with coverage gate (≥80% project code)
         run: |
-          go test ./internal/... ./pkg/... . -coverprofile=coverage.out
+          go test ./internal/... ./pkg/... ./cmd/... . -coverprofile=coverage.out
           go tool cover -func=coverage.out | tee cover.txt
           total="$(tail -1 cover.txt | awk '{gsub("%","",$NF); print $NF}')"
           echo "Total coverage: ${total}%"
@@ -106,7 +106,7 @@ jobs:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: go build ./internal/... ./pkg/...
+        run: go build ./internal/... ./pkg/... ./cmd/gohex-cli
 
   build:
     name: GUI build (${{ matrix.name }})

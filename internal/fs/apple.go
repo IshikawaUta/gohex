@@ -14,7 +14,7 @@ func probeApple(r rangeReader) (FS, error) {
 			case "H+", "HX":
 				return newHFSPlus(r, vh)
 			case "BD":
-				return nil, fmt.Errorf("fs: HFS detected but not yet supported (roadmap stage 3)")
+				return nil, fmt.Errorf("fs: HFS detected but not yet supported")
 			}
 		}
 	}

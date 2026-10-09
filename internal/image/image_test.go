@@ -207,8 +207,8 @@ func TestOpenErrors(t *testing.T) {
 func TestOpenUnsupportedContainerFamilies(t *testing.T) {
 	p := writeImg(t, "ex01", []byte("EVF2\r\n\x81\x00\x01\x00\x01\x00\x00"))
 	_, err := Open(p)
-	if err == nil || !strings.Contains(err.Error(), "roadmap stage 3") {
-		t.Errorf("Open(ex01) = %v, want roadmap stage 3 error", err)
+	if err == nil || !strings.Contains(err.Error(), "EWF2 (Ex01)") {
+		t.Errorf("Open(ex01) = %v, want EWF2-not-supported error", err)
 	}
 }
 

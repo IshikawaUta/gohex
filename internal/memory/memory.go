@@ -193,7 +193,7 @@ func Open(path string) (Capture, error) {
 			return Capture{}, err
 		}
 	case bytes.HasPrefix(head, []byte("PAGE")) && bytes.HasPrefix(head[4:], []byte("DUMP")):
-		return Capture{}, errors.New("memory: 32-bit Windows kernel dumps (PAGEDUMP) are not yet supported (roadmap stage 4)")
+		return Capture{}, errors.New("memory: 32-bit Windows kernel dumps (PAGEDUMP) are not yet supported")
 	default:
 		segs = []Segment{{Index: 0, Offset: 0, Length: size}}
 	}
@@ -792,7 +792,7 @@ func parseWinDump(f io.ReaderAt, size int64) ([]Segment, error) {
 	}
 	var sec [9]byte
 	if _, err := f.ReadAt(sec[:], winDumpHeaderSize); err == nil && string(sec[:]) == "CRASHDUMP" {
-		return nil, errors.New("memory: Windows 8+ compressed kernel dumps are not yet supported (roadmap stage 4)")
+		return nil, errors.New("memory: Windows 8+ compressed kernel dumps are not yet supported")
 	}
 	hdr := make([]byte, winDumpHeaderSize)
 	if _, err := f.ReadAt(hdr, 0); err != nil {
