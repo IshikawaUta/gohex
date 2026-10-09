@@ -478,6 +478,18 @@ export function SaveAs(id: number, newPath: string): $CancellablePromise<$models
 }
 
 /**
+ * ScriptRun executes a Starlark (.star) script with read-only access to
+ * the currently open documents through the sandboxed "gohex" module
+ * (docs/read/find/hash/version). The interpreter is bounded by a
+ * wall-clock timeout and a step limit; there is no filesystem, network,
+ * clock or randomness inside the sandbox. Every run is recorded in the
+ * audit log.
+ */
+export function ScriptRun(path: string): $CancellablePromise<$models.ScriptResult> {
+    return $Call.ByID(4133601522, path);
+}
+
+/**
  * SetEncoding switches the text column encoding for a document.
  */
 export function SetEncoding(id: number, name: string): $CancellablePromise<void> {

@@ -37,6 +37,7 @@ const (
 	ActionConfig     Action = "config"      // settings that affect security
 	ActionCase       Action = "case"        // case lifecycle
 	ActionSearch     Action = "search"      // search over evidence (access record)
+	ActionScript     Action = "script"      // ran an automation script over evidence
 )
 
 // Result of the operation.

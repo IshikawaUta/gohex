@@ -6,6 +6,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/edsrzf/mmap-go v1.2.0
 	github.com/wailsapp/wails/v3 v3.0.0-beta.27
+	go.starlark.net v0.0.0-20261005163335-bcb1a1a55bf9
 	golang.org/x/crypto v0.53.0
 	lukechampine.com/blake3 v1.4.1
 )

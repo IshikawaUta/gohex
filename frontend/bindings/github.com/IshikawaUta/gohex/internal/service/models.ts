@@ -172,6 +172,19 @@ export interface SaveResult {
 }
 
 /**
+ * ScriptResult is the outcome of one ScriptRun. A script that ran but
+ * failed (syntax error, runtime error, limit hit) is reported in Error
+ * with a non-zero DurationMs, not as a Go error — only infrastructure
+ * problems (missing file, unreadable path) fail the call itself.
+ */
+export interface ScriptResult {
+    "output": string;
+    "error"?: string;
+    "durationMs": number;
+    "steps": number;
+}
+
+/**
  * StartupInfo carries GUI startup hints: files to open from the command line
  * and whether the first-run disclaimer was pre-accepted (automation/tests).
  */

@@ -12,7 +12,7 @@ later stages plug in.
 │ frontend/            Svelte 5 + TypeScript (Wails webview) │
 │   virtual hex grid · tabs · find panel · dialogs · i18n    │
 ├──────────────────── generated bindings ────────────────────┤
-│ internal/service     RPC façade (63 methods, events)        │
+│ internal/service     RPC façade (65 methods, events)        │
 │   documents, search, hashing, images, partitions, fs, ...  │
 ├────────────────────────────────────────────────────────────┤
 │ internal/hex         Document: journal, undo/redo, search  │
@@ -24,6 +24,7 @@ later stages plug in.
 │ internal/recovery    signature-based file carving          │
 │ internal/browser     Chrome/Firefox/Safari artefact reader │
 │ internal/forensics   case, evidence, timeline, reports     │
+│ internal/script      sandboxed Starlark engine (read-only) │
 │ internal/sqlite      read-only SQLite + WAL merge (no cgo) │
 │ internal/encoding    text codecs, Intel-HEX, S-records     │
 │ internal/hash        sha*, md5, crc32/c, blake3, xxhash64  │
@@ -258,6 +259,37 @@ Non-goals: no evidence copying, no cloud sync, no automatic conclusions —
 the package records what the examiner tells it and refuses to record things
 it cannot validate.
 
+### Scripting
+
+`internal/script` embeds Starlark (`go.starlark.net`) as the automation
+engine. Scripts run against the open documents through a four-method `Host`
+interface (`Docs`/`Read`/`Find`), so the engine itself knows nothing about
+the service or the GUI, and the service injects a host bound to the current
+document set.
+
+- **Sandboxed by construction.** The `gohex` module (`docs`/`read`/`find`/
+  `hash`/`version`) is the only capability a script receives; `load()` is
+  disabled and the Starlark environment has no filesystem, network, clock or
+  randomness.
+- **Bounded, not trusted.** A wall-clock timeout (30 s) and an interpreter
+  step limit (10^6) stop runaway loops — the timeout cancels the evaluation
+  through `Thread.Cancel` rather than killing the process — and `print()`
+  output is captured (1 MiB cap) instead of reaching any real stdout.
+  Recursion and global reassignment stay disabled; top-level `for`/`if` and
+  `while` are allowed because scripts are programs, not library files.
+- **Failures are results.** A script that errors reports
+  `ScriptResult.Error` (carrying the interpreter's backtrace) while keeping
+  the output captured up to the failure; only infrastructure problems
+  (missing or oversized source file) fail the `ScriptRun` call itself.
+  Every run is audited as a `script` event with duration and outcome.
+
+The service's `scriptHost` implements the engine's `Host` against the open
+documents: reads are clamped to the document like `ReadWindow`, finds reuse
+the same ASCII text-pattern scanner as the search bar, and results are
+capped (500 hits per call, 4 KiB patterns). The GUI Script panel runs a
+chosen `.star` file and shows the captured output; it never writes anything
+— scripts read the live document, including unsaved edits.
+
 ### Service events
 
 The service emits `progress` events (`op`, `done`) for long operations
@@ -298,7 +330,7 @@ re-render. The store is the only shared mutable state.
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
 | 3 ◐ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems and multi-segment E01/L01 image sets are done. `internal/dump` still holds only its planned layout | `recovery`, `browser`, `forensics`, `dump` |
 | 4 ✅ | Memory viewer & crash-dump analyzer: LiME, AVML (Snappy), raw, ELF core, Windows minidump and Windows 64-bit dumps (complete + bitmap) | `memory` |
-| 5 | Scripting, utilities, packaging, signing, configurable keymap engine | `script`, `template`, `update` |
+| 5 ◐ | Scripting engine shipped (sandboxed Starlark + GUI runner). Utilities, packaging, signing and the configurable keymap engine remain | `script` |
 
 Stage 3 ships `internal/recovery`, `internal/browser` and `internal/forensics`.
 `internal/dump` still holds only its planned sub-directory layout, which is
@@ -315,6 +347,11 @@ self-contained (header, sections, terminator), sets are discovered by naming
 convention (E01..E99, EAA..ZZZ, L01..L99, ...) and a wrong claim, a missing
 segment or a mixed E01/L01 set is rejected up front instead of silently
 reading short.
+Stage 5 opened with the scripting engine: `internal/script` embeds Starlark
+with the read-only `gohex` capability module, the service exposes it as
+`ScriptRun`, and the GUI gained a Script panel. The remaining stage-5 scope
+— utilities, packaging, signing and the configurable keymap engine (the
+`shortcuts` map is already reserved in `internal/config`) — is next.
 Non-goal forever: anti-forensic features, credential extraction, stealth —
 see [legal.md](legal.md).
 

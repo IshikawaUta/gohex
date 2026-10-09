@@ -18,6 +18,7 @@
   import Browser from "./lib/dialogs/Browser.svelte";
   import Memory from "./lib/dialogs/Memory.svelte";
   import Case from "./lib/dialogs/Case.svelte";
+  import Script from "./lib/dialogs/Script.svelte";
 
   let doc = $derived(store.active);
   let ready = $state(false);
@@ -98,7 +99,8 @@
         store.showCarve ||
         store.showBrowser ||
         store.showMemory ||
-        store.showCase
+        store.showCase ||
+        store.showScript
       ) {
         store.showPrefs = false;
         store.showAbout = false;
@@ -107,6 +109,7 @@
         store.showBrowser = false;
         store.showMemory = false;
         store.showCase = false;
+        store.showScript = false;
         return;
       }
       if (store.showEthics) {
@@ -252,6 +255,9 @@
   {/if}
   {#if store.showCase}
     <Case />
+  {/if}
+  {#if store.showScript}
+    <Script />
   {/if}
 </div>
 

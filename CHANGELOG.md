@@ -89,7 +89,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   uncompressed virtual view (AVML blocks decompress on demand), the memory
   panel routes compressed captures through it, and remaining gaps — 32-bit
   `PAGEDUMP`, Windows kernel/small dumps, Windows 8+ compressed dumps —
-  report explicit errors.
+   report explicit errors.
+- **Automation scripts** (`internal/script`): a sandboxed Starlark engine
+  (go.starlark.net) whose `gohex` module gives scripts read-only access to
+  the open documents (`docs`/`read`/`find`/`hash`/`version`) — no
+  filesystem, network, clock or randomness, module loading disabled —
+  bounded by a 30-second timeout, a one-million-step interpreter limit and
+  capped `print()` output. Failures are reported with the interpreter
+  backtrace in the result (not as a Go error), and every run is audited as
+  a `script` event. Exposed as `ScriptRun` with a GUI Script panel.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

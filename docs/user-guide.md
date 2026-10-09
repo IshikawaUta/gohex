@@ -218,6 +218,46 @@ file, which is what chain of custody needs.
 Only one case is open at a time; **Close** releases it. Closing without
 saving discards unsaved findings, and that too is recorded in the audit log.
 
+## Automation scripts (Stage 5)
+
+Toolbar → **Script** runs a Starlark (`.star`) script over the documents
+you already have open — triage helpers, hash lists, pattern hunts — without
+giving the script any way to touch the rest of the machine.
+
+The sandbox is deliberately tiny: no filesystem, no network, no clock, no
+randomness, and no `load()` of other modules. The only capability a script
+receives is the built-in `gohex` module:
+
+| Member | Meaning |
+|---|---|
+| `gohex.docs()` | list of open documents (`id`, `name`, `size`) |
+| `gohex.read(id, offset, size)` | bytes from a document (a short read at the end is fine) |
+| `gohex.find(id, text, offset=0, limit=100)` | offsets of an ASCII text search, up to `limit` (max 500) |
+| `gohex.hash(data, algo="sha256")` | hex digest, same algorithms as the toolbar |
+| `gohex.version()` | product + version string |
+
+Example — scan every open document for MZ headers:
+
+```python
+for d in gohex.docs():
+    hits = gohex.find(d.id, "MZ", limit=500)
+    print("%s (%d bytes): %d MZ headers" % (d.name, d.size, len(hits)))
+    if hits:
+        head = gohex.read(d.id, hits[0], 2)
+        print("  first at 0x%x: %r" % (hits[0], head))
+```
+
+Runs are bounded: a 30-second timeout, a one-million-step interpreter limit,
+`print()` output capped at 1 MiB and a single `read` of at most 16 MiB — a
+runaway script stops, it does not hang the UI. A script that fails (syntax
+error, runtime error, limit hit) reports the error with the interpreter's
+backtrace in the output pane, with everything `print()` wrote before the
+failure preserved. Every run — success or failure — is recorded in the audit
+log as a `script` event with the script's path, duration and outcome.
+
+Scripts read the *open document*, including unsaved in-memory edits, not the
+file on disk.
+
 ## Preferences (⚙ or `Ctrl+,`)
 
 | Setting | Notes |

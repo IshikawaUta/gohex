@@ -18,6 +18,7 @@ export type {
     ImageInfo,
     PartitionInfo,
     SaveResult,
+    ScriptResult,
     StartupInfo,
     WindowData
 } from "./models.js";

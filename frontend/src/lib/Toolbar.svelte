@@ -58,6 +58,13 @@
   <button class="tb" onclick={() => (store.showCase = true)} title="Forensic case, evidence and report">
     Case
   </button>
+  <button
+    class="tb"
+    onclick={() => (store.showScript = true)}
+    title="Run a sandboxed automation script over the open documents"
+  >
+    Script
+  </button>
   <span class="sep"></span>
   <button
     class="tb"
