@@ -109,6 +109,26 @@ decode are *flagged, never guessed*: `compressed` (HFS+ decmpfs),
 `encrypted` (sealed APFS volumes), `hardlink`, `symlink` and `readonly`
 appear as attributes on the entry.
 
+## Memory captures
+
+Toolbar → **Memory** inspects RAM captures read-only. The first time you
+open it you must acknowledge an ethics notice: this module is for authorized
+examination only, and it never extracts credentials or live process data.
+
+1. **Open capture…** selects the file. LiME v1 captures (`EMiL` magic) are
+   recognised automatically and split into their physical segments; a
+   headerless raw dump opens as a single segment without an address map.
+2. The segment table lists every range: its physical start–end, byte length
+   and file offset. Select a row to **Open segment as hex**, or **Open
+   capture as hex** for the whole file.
+3. Type a **Physical address** (decimal or `0x…` hex) and **Locate** to map
+   it onto the file offset holding that byte; **Open at address** loads the
+   editor window from there to the end of its segment.
+
+Everything is strictly read-only — the capture is never modified. AVML and
+crash dumps (minidump, `PAGEDU64`, ELF core) are not yet supported and are
+part of the upcoming crash-dump analyzer.
+
 ## Carving
 
 Toolbar → **Carve** recovers files that are no longer reachable through a

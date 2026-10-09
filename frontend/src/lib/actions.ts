@@ -212,11 +212,21 @@ export async function hashActive(algo: string, selectionOnly: boolean): Promise<
 }
 
 export function openBrowser(): void {
-  if (!ethicsAccepted()) {
+  if (!ethicsAccepted("browser")) {
+    store.ethicsTarget = "browser";
     store.showEthics = true;
     return;
   }
   store.showBrowser = true;
+}
+
+export function openMemory(): void {
+  if (!ethicsAccepted("memory")) {
+    store.ethicsTarget = "memory";
+    store.showEthics = true;
+    return;
+  }
+  store.showMemory = true;
 }
 
 export async function preferencesChanged(next: Preferences): Promise<void> {

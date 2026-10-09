@@ -20,7 +20,9 @@ class Store {
   showDisk = $state(false);
   showCarve = $state(false);
   showEthics = $state(false);
+  ethicsTarget = $state<"browser" | "memory">("browser");
   showBrowser = $state(false);
+  showMemory = $state(false);
   showCase = $state(false);
   findOpen = $state(false);
   pendingNibble = $state(-1);

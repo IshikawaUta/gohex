@@ -16,6 +16,7 @@
   import Carve from "./lib/dialogs/Carve.svelte";
   import Ethics from "./lib/dialogs/Ethics.svelte";
   import Browser from "./lib/dialogs/Browser.svelte";
+  import Memory from "./lib/dialogs/Memory.svelte";
   import Case from "./lib/dialogs/Case.svelte";
 
   let doc = $derived(store.active);
@@ -96,6 +97,7 @@
         store.showDisk ||
         store.showCarve ||
         store.showBrowser ||
+        store.showMemory ||
         store.showCase
       ) {
         store.showPrefs = false;
@@ -103,6 +105,7 @@
         store.showDisk = false;
         store.showCarve = false;
         store.showBrowser = false;
+        store.showMemory = false;
         store.showCase = false;
         return;
       }
@@ -234,10 +237,18 @@
     <Carve />
   {/if}
   {#if store.showEthics}
-    <Ethics onaccept={() => (store.showBrowser = true)} />
+    <Ethics
+      onaccept={(mod) => {
+        if (mod === "memory") store.showMemory = true;
+        else store.showBrowser = true;
+      }}
+    />
   {/if}
   {#if store.showBrowser}
     <Browser />
+  {/if}
+  {#if store.showMemory}
+    <Memory />
   {/if}
   {#if store.showCase}
     <Case />

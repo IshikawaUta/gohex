@@ -65,9 +65,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   valid checkpoint adoption, object-map resolution (physical and virtual),
   fs-tree and dedicated fext-tree walks, hashed directory keys per the
   incompat flags, xfield dstreams and the container's single volume, all
-  behind the existing `ProbeFileSystem`/`FsList`/`FsStat`/`FsRead`/
-  `FsExport` APIs. Images are assembled by in-test builders, so no
-  `mkfs.hfsplus`/`mkfs.apfs` is needed to run the suite.
+   behind the existing `ProbeFileSystem`/`FsList`/`FsStat`/`FsRead`/
+   `FsExport` APIs. Images are assembled by in-test builders, so no
+   `mkfs.hfsplus`/`mkfs.apfs` is needed to run the suite.
+- **Memory captures** (`internal/memory`): magic-based detection of LiME v1
+  captures with their physical segment map — every `(header, payload)` block
+  keeps its physical range and file offset, and a physical address is located
+  back to the exact byte — plus a headerless raw fallback, surfaced through
+  `MemoryInfo`/`MemoryLocate`, a GUI memory panel that opens any segment as
+  hex, and the one-time ethics notice as required by `docs/legal.md`.
+  Strictly read-only; AVML and crash dumps are still to come with the
+  crash-dump analyzer.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

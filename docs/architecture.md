@@ -12,13 +12,14 @@ later stages plug in.
 │ frontend/            Svelte 5 + TypeScript (Wails webview) │
 │   virtual hex grid · tabs · find panel · dialogs · i18n    │
 ├──────────────────── generated bindings ────────────────────┤
-│ internal/service     RPC façade (61 methods, events)        │
+│ internal/service     RPC façade (63 methods, events)        │
 │   documents, search, hashing, images, partitions, fs, ...  │
 ├────────────────────────────────────────────────────────────┤
 │ internal/hex         Document: journal, undo/redo, search  │
 │ internal/core        Sources: files, mmap, windowed reads  │
 │ internal/disk        MBR / EBR / GPT partition tables      │
 │ internal/image       image containers (raw, E01, VHD, ...) │
+│ internal/memory      memory captures (LiME, raw)           │
 │ internal/fs          read-only FAT/NTFS/ext/ISO/HFS+/APFS  │
 │ internal/recovery    signature-based file carving          │
 │ internal/browser     Chrome/Firefox/Safari artefact reader │
@@ -108,6 +109,20 @@ Filesystem sessions are cached for the lifetime of the app (so directory
 listings do not re-parse the superblock) and released by `App.Close`.
 `FsExport` writes to a destination that must not already exist and records
 the SHA-256 of the copy in the audit log.
+
+### Memory captures
+
+`internal/memory` opens RAM captures read-only and exposes their segment
+map. LiME v1 files (magic `EMiL`) are walked as a chain of 32-byte range
+headers — `(header, end-start+1 payload bytes)` repeated to the end of the
+file — so every segment keeps its physical range and file offset, and
+`Locate` maps a physical address onto the byte offset holding it; headerless
+raw dumps fall back to a single segment without an address map. Detection is
+magic-based like `internal/image` and nothing is ever written to the
+capture. The service surfaces it as `MemoryInfo`/`MemoryLocate` behind the
+one-time ethics notice `docs/legal.md` requires. AVML and crash dumps
+(minidump, `PAGEDU64`, ELF core) are still to come with the crash-dump
+analyzer.
 
 ### Search
 
@@ -263,7 +278,7 @@ re-render. The store is the only shared mutable state.
 | 1 ✅ | Hex editor core + GUI shell | `core`, `hex`, `encoding`, `hash`, `audit`, `config`, `service` |
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
 | 3 ◐ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems and multi-segment E01/L01 image sets are done. `internal/dump` still holds only its planned layout | `recovery`, `browser`, `forensics`, `dump` |
-| 4 | Memory viewer (read-only), crash-dump analyzer | `memory` |
+| 4 ◐ | Memory viewer (read-only) for LiME/raw captures is done; crash-dump analyzer still to come | `memory` |
 | 5 | Scripting, utilities, packaging, signing, configurable keymap engine | `script`, `template`, `update` |
 
 Stage 3 ships `internal/recovery`, `internal/browser` and `internal/forensics`.

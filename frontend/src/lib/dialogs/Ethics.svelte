@@ -1,20 +1,20 @@
 <script lang="ts">
   import { store } from "../state.svelte";
-  import { acceptEthics } from "../ethics";
+  import { acceptEthics, type EthicsModule } from "../ethics";
 
-  let { onaccept }: { onaccept: () => void } = $props();
+  let { onaccept }: { onaccept: (mod: EthicsModule) => void } = $props();
 
   function accept(): void {
-    acceptEthics();
+    acceptEthics(store.ethicsTarget);
     store.showEthics = false;
-    onaccept();
+    onaccept(store.ethicsTarget);
   }
 </script>
 
 <div class="overlay" role="dialog" aria-modal="true" aria-label={store.t("dialog.ethics.title")}>
   <div class="modal">
     <h2>⚠ {store.t("dialog.ethics.title")}</h2>
-    <p class="body">{store.t("dialog.ethics.browser")}</p>
+    <p class="body">{store.t(`dialog.ethics.${store.ethicsTarget}`)}</p>
     <div class="actions">
       <button class="primary" onclick={accept}>I understand — continue</button>
     </div>

@@ -27,7 +27,7 @@ Stage 1 (hex editor core + GUI shell) and Stage 2 (disk images, partitions, read
 | Data recovery & carving | ◐ stage 3 |
 | Forensic case management & reports | ◐ stage 3 |
 | Browser artifact parser | ◐ stage 3 |
-| Memory viewer (read-only) & dump analyzer | 🔜 stage 4 |
+| Memory viewer (read-only) & dump analyzer | ◐ stage 4 |
 | Scripting, utilities, packaging, signing | 🔜 stage 5 |
 
 ## Build & run

@@ -1,21 +1,26 @@
-const KEY = "gohex.ethics.browser.v1";
+export type EthicsModule = "browser" | "memory";
+
+const KEYS: Record<EthicsModule, string> = {
+  browser: "gohex.ethics.browser.v1",
+  memory: "gohex.ethics.memory.v1",
+};
 
 /**
- * reports whether the browser-artefact ethics notice has been acknowledged
- * on this machine. docs/legal.md requires the notice the first time such a
- * module is opened.
+ * reports whether the ethics notice of a module has been acknowledged on
+ * this machine. docs/legal.md requires the notice the first time such a
+ * module (browser artefacts, memory captures, crash dumps) is opened.
  */
-export function ethicsAccepted(): boolean {
+export function ethicsAccepted(mod: EthicsModule): boolean {
   try {
-    return localStorage.getItem(KEY) === "1";
+    return localStorage.getItem(KEYS[mod]) === "1";
   } catch {
     return false;
   }
 }
 
-export function acceptEthics(): void {
+export function acceptEthics(mod: EthicsModule): void {
   try {
-    localStorage.setItem(KEY, "1");
+    localStorage.setItem(KEYS[mod], "1");
   } catch {
     /* storage unavailable */
   }

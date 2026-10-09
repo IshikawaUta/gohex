@@ -24,6 +24,9 @@ import * as forensics$0 from "../forensics/models.js";
 import * as fs$0 from "../fs/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as memory$0 from "../memory/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as recovery$0 from "../recovery/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -334,6 +337,25 @@ export function InsertBytes(id: number, offset: number, data: string | null): $C
  */
 export function ListDocuments(): $CancellablePromise<$models.DocInfo[] | null> {
     return $Call.ByID(1135023628);
+}
+
+/**
+ * MemoryInfo reports the format, size and physical segment map of a memory
+ * capture. The capture is opened read-only and only its parsed metadata is
+ * returned; the access is recorded in the audit log.
+ */
+export function MemoryInfo(path: string): $CancellablePromise<memory$0.Capture> {
+    return $Call.ByID(333990465, path);
+}
+
+/**
+ * MemoryLocate maps a physical address inside the capture onto a file offset
+ * so the caller can open the covering bytes in the hex view. It re-reads the
+ * capture's headers only; the access is already covered by the MemoryInfo
+ * audit record, so no second record is written here.
+ */
+export function MemoryLocate(path: string, phys: number): $CancellablePromise<memory$0.Location> {
+    return $Call.ByID(3212853347, path, phys);
 }
 
 /**
