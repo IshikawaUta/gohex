@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/IshikawaUta/gohex/internal/keymap"
 )
 
 // Theme selects the colour scheme.
@@ -96,26 +98,16 @@ func Default() Preferences {
 	}
 }
 
-// DefaultShortcuts mirrors classic WinHex key bindings.
+// DefaultShortcuts returns the stock WinHex-flavoured keymap, sourced
+// from the keymap engine so the action catalogue cannot drift.
 func DefaultShortcuts() map[string]string {
-	return map[string]string{
-		"file.open":      "Ctrl+O",
-		"file.save":      "Ctrl+S",
-		"file.saveAs":    "Ctrl+Shift+S",
-		"edit.undo":      "Ctrl+Z",
-		"edit.redo":      "Ctrl+Y",
-		"edit.cut":       "Ctrl+X",
-		"edit.copy":      "Ctrl+C",
-		"edit.paste":     "Ctrl+V",
-		"edit.fill":      "Ctrl+F",
-		"search.find":    "Ctrl+F",
-		"search.replace": "Ctrl+H",
-		"search.next":    "F3",
-		"search.prev":    "Shift+F3",
-		"goto.offset":    "Ctrl+G",
-		"view.theme":     "Ctrl+Shift+T",
-		"help.shortcuts": "F1",
+	m := make(map[string]string)
+	for _, id := range keymap.Actions() {
+		if d := keymap.Default(id); d != "" {
+			m[id] = d
+		}
 	}
+	return m
 }
 
 // DefaultAuditPath returns the per-user audit log location.
@@ -246,6 +238,9 @@ func (p Preferences) Validate() error {
 	}
 	if p.RESTAPIEnable && strings.TrimSpace(p.RESTAPIToken) == "" {
 		return fmt.Errorf("config: REST API requires a token")
+	}
+	if err := keymap.Validate(p.Shortcuts); err != nil {
+		return fmt.Errorf("config: %w", err)
 	}
 	return nil
 }

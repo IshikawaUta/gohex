@@ -616,3 +616,19 @@ func TestUnknownDocumentErrors(t *testing.T) {
 		t.Fatal("missing doc save as")
 	}
 }
+
+func TestShortcutDefaults(t *testing.T) {
+	app := newTestApp(t)
+	d := app.ShortcutDefaults()
+	if d["file.open"] != "Ctrl+O" || d["search.find"] != "Ctrl+F" {
+		t.Fatalf("defaults = %v", d)
+	}
+	if len(d) < 10 {
+		t.Fatalf("defaults too small: %d", len(d))
+	}
+	// Saving a preferences object with the defaults must validate.
+	p := config.Default()
+	if err := app.SetPreferences(p); err != nil {
+		t.Fatalf("SetPreferences(defaults): %v", err)
+	}
+}

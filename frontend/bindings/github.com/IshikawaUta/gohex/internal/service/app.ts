@@ -525,6 +525,14 @@ export function SetStartupHints(skipDisclaimer: boolean, files: string[] | null)
 }
 
 /**
+ * ShortcutDefaults returns the stock keymap (action ID → chord) backing
+ * the Preferences shortcuts editor and its reset button.
+ */
+export function ShortcutDefaults(): $CancellablePromise<{ [_ in string]?: string } | null> {
+    return $Call.ByID(71271954);
+}
+
+/**
  * StartupInfo returns the hints recorded by SetStartupHints.
  */
 export function StartupInfo(): $CancellablePromise<$models.StartupInfo> {

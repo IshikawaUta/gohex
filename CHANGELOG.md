@@ -112,6 +112,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   HTTP error, malformed or oversized response) is reported as data in the
   result, never as a Go error. Exposed as `UpdateCheck` with an audited
   probe and a **Check for updates** button in the About panel.
+- **Configurable keymap engine** (`internal/keymap`): an action catalogue
+  (`file.open` … `help.shortcuts`) with chord parsing and canonicalisation
+  (Ctrl/Alt/Shift/Meta with Control/Cmd/Option/Super aliases), whole-map
+  validation (unknown actions, bad chords and duplicate bindings are
+  rejected with the reason) and chord-to-action resolution. The stock
+  WinHex-flavoured defaults are derived from the catalogue,
+  `config.Validate` runs on every load and save, the GUI dispatches global
+  keys through the user's map instead of hard-coded handlers, and the
+  Preferences dialog edits every chord (empty unbinds, reset restores the
+  defaults via `ShortcutDefaults`).
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

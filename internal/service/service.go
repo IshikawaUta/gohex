@@ -223,6 +223,10 @@ func (a *App) event(name string, payload any) {
 // Version returns the application version.
 func (a *App) Version() string { return version.Version }
 
+// ShortcutDefaults returns the stock keymap (action ID → chord) backing
+// the Preferences shortcuts editor and its reset button.
+func (a *App) ShortcutDefaults() map[string]string { return config.DefaultShortcuts() }
+
 // Preferences returns a copy of the active configuration.
 func (a *App) Preferences() config.Preferences {
 	a.mu.Lock()

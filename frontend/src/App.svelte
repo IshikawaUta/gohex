@@ -3,6 +3,7 @@
   import { store } from "./lib/state.svelte";
   import { Events, svc } from "./lib/api";
   import * as A from "./lib/actions";
+  import { findAction } from "./lib/keymap";
   import { disclaimerAccepted, acceptDisclaimer } from "./lib/disclaimer";
   import Toolbar from "./lib/Toolbar.svelte";
   import TabBar from "./lib/TabBar.svelte";
@@ -122,60 +123,68 @@
       if (store.findOpen) store.findOpen = false;
       return;
     }
-    const mod = e.ctrlKey || e.metaKey;
-    if (!mod) return;
-    const key = e.key.toLowerCase();
     const inInput = isTypingTarget(e);
+    const action = findAction(store.prefs?.shortcuts, e);
+    if (!action) return;
 
-    switch (key) {
-      case "o":
+    switch (action) {
+      case "file.open":
         e.preventDefault();
         void A.openFile();
         break;
-      case "n":
+      case "file.new":
         e.preventDefault();
         void A.newDocument();
         break;
-      case "s":
+      case "file.save":
         e.preventDefault();
-        if (e.shiftKey) void A.saveActiveAs();
-        else void A.saveActive();
+        void A.saveActive();
         break;
-      case "z":
+      case "file.saveAs":
+        e.preventDefault();
+        void A.saveActiveAs();
+        break;
+      case "edit.undo":
         if (inInput) return;
         e.preventDefault();
-        if (e.shiftKey) void A.redo();
-        else void A.undo();
+        void A.undo();
         break;
-      case "y":
+      case "edit.redo":
         if (inInput) return;
         e.preventDefault();
         void A.redo();
         break;
-      case "f":
-        e.preventDefault();
-        store.findOpen = true;
-        break;
-      case "g":
-        e.preventDefault();
-        document.querySelector<HTMLButtonElement>(".offset-btn")?.click();
-        break;
-      case "a":
+      case "edit.selectAll":
         if (inInput) return;
         if (!doc) return;
         e.preventDefault();
         void A.selectAll();
         break;
-      case "c":
+      case "edit.copy":
         if (inInput || !doc) return;
         e.preventDefault();
-        void store.copyFn?.(e.shiftKey ? "text" : "hex");
+        void store.copyFn?.("hex");
         break;
-      case ",":
+      case "edit.copyText":
+        if (inInput || !doc) return;
+        e.preventDefault();
+        void store.copyFn?.("text");
+        break;
+      case "search.find":
+        e.preventDefault();
+        store.findOpen = true;
+        break;
+      case "goto.offset":
+        e.preventDefault();
+        document.querySelector<HTMLButtonElement>(".offset-btn")?.click();
+        break;
+      case "preferences.open":
         e.preventDefault();
         store.showPrefs = true;
         break;
       default:
+        // Reserved actions (search.replace, search.next/prev, view.theme,
+        // help.*) have no UI surface yet; the binding is kept for them.
         return;
     }
   }

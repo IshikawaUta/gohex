@@ -287,3 +287,45 @@ func TestCatalog(t *testing.T) {
 		t.Fatal("unknown lang must fall back to EN")
 	}
 }
+
+func TestShortcutsValidation(t *testing.T) {
+	// The stock keymap is valid.
+	p := Default()
+	if err := p.Validate(); err != nil {
+		t.Fatalf("defaults: %v", err)
+	}
+	if p.Shortcuts["file.open"] != "Ctrl+O" || p.Shortcuts["search.find"] != "Ctrl+F" {
+		t.Fatalf("defaults lost bindings: %v", p.Shortcuts)
+	}
+	if _, clash := p.Shortcuts["edit.fill"]; clash {
+		t.Fatal("edit.fill must not shadow search.find on Ctrl+F")
+	}
+
+	// Overrides normalise case and modifier order.
+	p = Default()
+	p.Shortcuts["file.open"] = "control+o"
+	if err := p.Validate(); err != nil {
+		t.Fatalf("alias chord: %v", err)
+	}
+
+	// Empty value unbinds an action.
+	p = Default()
+	p.Shortcuts["file.open"] = ""
+	if err := p.Validate(); err != nil {
+		t.Fatalf("unbind: %v", err)
+	}
+
+	for name, mutate := range map[string]func(p *Preferences){
+		"bad chord": func(p *Preferences) { p.Shortcuts["file.open"] = "Ctrl+Notakey" },
+		"unknown action": func(p *Preferences) {
+			p.Shortcuts["nope.action"] = "Ctrl+O"
+		},
+		"duplicate chord": func(p *Preferences) { p.Shortcuts["file.new"] = "Ctrl+O" },
+	} {
+		p := Default()
+		mutate(&p)
+		if err := p.Validate(); err == nil {
+			t.Errorf("%s: err = nil", name)
+		}
+	}
+}

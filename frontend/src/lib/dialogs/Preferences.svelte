@@ -1,16 +1,23 @@
 <script lang="ts">
   import { store } from "../state.svelte";
   import * as A from "../actions";
+  import { svc } from "../api";
   import type { Preferences } from "../../../bindings/github.com/IshikawaUta/gohex/internal/config/models";
 
   let draft = $state<Preferences | null>(null);
+  let defaults = $state<Record<string, string> | null>(null);
 
   $effect(() => {
     if (store.showPrefs && store.prefs && !draft) {
       draft = structuredClone(store.prefs);
+      if (!draft.shortcuts) draft.shortcuts = {};
     }
     if (!store.showPrefs) draft = null;
   });
+
+  svc.ShortcutDefaults()
+    .then((d) => (defaults = (d as Record<string, string>) ?? {}))
+    .catch(() => (defaults = {}));
 
   const profiles: Record<string, string> = {
     analyst: "Analyst — edit documents, save to new files",
@@ -18,6 +25,47 @@
     readonly: "Read-Only — all modifications rejected",
     examiner: "Examiner — includes guarded physical-disk writes",
   };
+
+  const actionLabels: Record<string, string> = {
+    "file.open": "Open file",
+    "file.new": "New document",
+    "file.save": "Save",
+    "file.saveAs": "Save As",
+    "edit.undo": "Undo",
+    "edit.redo": "Redo",
+    "edit.cut": "Cut",
+    "edit.copy": "Copy (hex)",
+    "edit.copyText": "Copy (text)",
+    "edit.paste": "Paste",
+    "edit.selectAll": "Select all",
+    "search.find": "Find",
+    "search.replace": "Replace",
+    "search.next": "Find next",
+    "search.prev": "Find previous",
+    "goto.offset": "Goto offset",
+    "view.theme": "Cycle theme",
+    "preferences.open": "Preferences",
+    "help.shortcuts": "Shortcuts help",
+  };
+
+  let actions = $derived(Object.keys(actionLabels).sort());
+
+  function chord(action: string): string {
+    return draft?.shortcuts?.[action] ?? "";
+  }
+
+  function setChord(action: string, value: string): void {
+    if (!draft) return;
+    if (!draft.shortcuts) draft.shortcuts = {};
+    draft.shortcuts[action] = value;
+    draft = draft; // trigger rune reactivity on the nested map
+  }
+
+  function resetShortcuts(): void {
+    if (!draft || !defaults) return;
+    draft.shortcuts = { ...defaults };
+    draft = draft;
+  }
 
   async function save(): Promise<void> {
     if (!draft) return;
@@ -87,6 +135,34 @@
         <div class="hint"></div>
       </div>
 
+      <div class="shortcuts-head">
+        <h3>Keyboard shortcuts</h3>
+        <button onclick={resetShortcuts} disabled={!defaults}>Reset to defaults</button>
+      </div>
+      <p class="hint-wide">
+        Chords are <span class="mono">Ctrl+Alt+Shift+Key</span> (aliases Control/Cmd/Option
+        accepted). Leave a field empty to unbind. Invalid or duplicate chords are
+        rejected on save.
+      </p>
+      <table class="shortcuts">
+        <tbody>
+          {#each actions as action}
+            <tr>
+              <td>{actionLabels[action]}</td>
+              <td class="mono dim">{action}</td>
+              <td>
+                <input
+                  class="mono chord"
+                  value={chord(action)}
+                  placeholder="(unbound)"
+                  onchange={(e) => setChord(action, (e.target as HTMLInputElement).value)}
+                />
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+
       <div class="actions">
         <button onclick={() => (store.showPrefs = false)}>Cancel</button>
         <button class="primary" onclick={save}>Save</button>
@@ -108,6 +184,8 @@
 
   .modal {
     width: min(560px, 94vw);
+    max-height: 88vh;
+    overflow: auto;
     background: var(--bg-panel);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -117,6 +195,12 @@
   h2 {
     margin: 0 0 16px;
     font-size: 16px;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 13px;
+    letter-spacing: 0.02em;
   }
 
   .grid {
@@ -139,10 +223,58 @@
     margin-top: -6px;
   }
 
+  .hint-wide {
+    margin: 4px 0 10px;
+    color: var(--text-dim);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+
+  .mono {
+    font-family: var(--font-mono);
+  }
+
+  .dim {
+    color: var(--text-dim);
+    font-size: 11.5px;
+  }
+
   .chk {
     display: flex;
     gap: 8px;
     align-items: center;
+    color: var(--text);
+  }
+
+  .shortcuts-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  table.shortcuts {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12.5px;
+    margin-bottom: 6px;
+  }
+
+  table.shortcuts td {
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  input.chord {
+    width: 18ch;
+    padding: 3px 6px;
+    font-size: 12.5px;
+    background: var(--bg-input, transparent);
+    border: 1px solid var(--border);
+    border-radius: 5px;
     color: var(--text);
   }
 

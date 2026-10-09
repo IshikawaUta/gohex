@@ -312,29 +312,40 @@ recorded in the audit log; templates only ever read.
 | Offset radix | hex or decimal display |
 | Profile | editing policy, see above |
 | Sandbox mode | simulate saves, never write |
+| Keyboard shortcuts | rebind every action (see below) |
 
 Saved to `~/.config/gohex/config.json` (platform user-config dir).
 
-## Keyboard shortcuts (Stage 1)
+## Keyboard shortcuts
 
-| Key | Action |
-|---|---|
-| `Ctrl+O` | Open file |
-| `Ctrl+N` | New document |
-| `Ctrl+S` / `Ctrl+Shift+S` | Save / Save as |
-| `Ctrl+Z` / `Ctrl+Y` | Undo / Redo |
-| `Ctrl+F` | Find panel |
-| `Ctrl+G` | Go to offset |
-| `Ctrl+A` | Select all |
-| `Ctrl+C` / `Ctrl+Shift+C` | Copy as hex / as text |
-| `Ctrl+,` | Preferences |
-| `Esc` | Close dialog or find panel; clear pending nibble |
-| Arrows / `Home` / `End` / `PgUp` / `PgDn` | Move cursor (grid focused) |
-| `Backspace` | Cancel a half-typed nibble |
+Stock bindings (WinHex-flavoured); every chord is configurable in
+**Preferences → Keyboard shortcuts**:
+
+| Key | Action | Action ID |
+|---|---|---|
+| `Ctrl+O` | Open file | `file.open` |
+| `Ctrl+N` | New document | `file.new` |
+| `Ctrl+S` / `Ctrl+Shift+S` | Save / Save as | `file.save` / `file.saveAs` |
+| `Ctrl+Z` / `Ctrl+Y` | Undo / Redo | `edit.undo` / `edit.redo` |
+| `Ctrl+C` / `Ctrl+Shift+C` | Copy as hex / as text | `edit.copy` / `edit.copyText` |
+| `Ctrl+A` | Select all | `edit.selectAll` |
+| `Ctrl+F` | Find panel | `search.find` |
+| `Ctrl+G` | Go to offset | `goto.offset` |
+| `Ctrl+,` | Preferences | `preferences.open` |
+| `Esc` | Close dialog or find panel; clear pending nibble | — |
+| Arrows / `Home` / `End` / `PgUp` / `PgDn` | Move cursor (grid focused) | — |
+| `Backspace` | Cancel a half-typed nibble | — |
 
 `Enter`/`Shift+Enter` inside the find field jump to next/previous match.
-The `shortcuts` map in `config.json` is reserved for the configurable keymap
-engine planned for stage 5.
+
+Rebinding: edit the chord in **Preferences** (`Ctrl+Alt+Shift+Key`;
+aliases Control/Cmd/Option/Super are accepted and normalised on save).
+Leaving a field empty unbinds the action. Invalid chords, unknown action
+IDs and two actions claiming the same chord are rejected on save with the
+reason — the same validation runs on the `shortcuts` map in
+`config.json`, so a hand-edited file cannot smuggle in a broken keymap.
+Actions shown as reserved (`search.replace`, `search.next`/`prev`,
+`view.theme`, `help.shortcuts`) keep their bindings for future UI.
 
 ## Updates
 

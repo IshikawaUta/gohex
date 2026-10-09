@@ -12,7 +12,7 @@ later stages plug in.
 │ frontend/            Svelte 5 + TypeScript (Wails webview) │
 │   virtual hex grid · tabs · find panel · dialogs · i18n    │
 ├──────────────────── generated bindings ────────────────────┤
-│ internal/service     RPC façade (68 methods, events)        │
+│ internal/service     RPC façade (69 methods, events)        │
 │   documents, search, hashing, images, partitions, fs, ...  │
 ├────────────────────────────────────────────────────────────┤
 │ internal/hex         Document: journal, undo/redo, search  │
@@ -27,6 +27,7 @@ later stages plug in.
 │ internal/script      sandboxed Starlark engine (read-only) │
 │ internal/template    structure-template overlay (WinHex-style) │
 │ internal/update      opt-in update check (GitHub releases) │
+│ internal/keymap      configurable keymap engine             │
 │ internal/sqlite      read-only SQLite + WAL merge (no cgo) │
 │ internal/encoding    text codecs, Intel-HEX, S-records     │
 │ internal/hash        sha*, md5, crc32/c, blake3, xxhash64  │
@@ -328,6 +329,25 @@ metadata ignored). The service audits enabled probes; disabled checks are
 local and unaudited. `GOHEX_UPDATE_URL` overrides the endpoint for mirrors
 and offline test fixtures.
 
+### Keymap engine
+
+`internal/keymap` is the single source of truth for keyboard shortcuts:
+it defines the action catalogue (`file.open` … `help.shortcuts`), parses
+and canonicalises chord strings (`Ctrl+Shift+S`; aliases Control/Cmd/
+Option/Super fold onto Ctrl/Meta/Alt; the canonical form fixes modifier
+order, uppercases letters and F-keys, title-cases named keys), validates
+whole keymaps (unknown action, unparseable chord, two actions on one
+chord — first error wins) and resolves chords to action IDs.
+`config.DefaultShortcuts` is derived from the catalogue so the two cannot
+drift, and `config.Validate` runs `keymap.Validate` on every load and
+save — a hand-edited `config.json` cannot smuggle in a broken keymap.
+The frontend mirrors canonicalisation in `lib/keymap.ts`; the global
+dispatcher in `App.svelte` resolves the captured event through the
+user's map instead of hard-coded keys, and the Preferences dialog edits
+chords (empty = unbound) with the stock map available via
+`ShortcutDefaults`. Reserved actions keep their bindings until their UI
+lands.
+
 ### Service events
 
 The service emits `progress` events (`op`, `done`) for long operations
@@ -368,7 +388,7 @@ re-render. The store is the only shared mutable state.
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
 | 3 ◐ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems and multi-segment E01/L01 image sets are done. `internal/dump` still holds only its planned layout | `recovery`, `browser`, `forensics`, `dump` |
 | 4 ✅ | Memory viewer & crash-dump analyzer: LiME, AVML (Snappy), raw, ELF core, Windows minidump and Windows 64-bit dumps (complete + bitmap) | `memory` |
-| 5 ◐ | Scripting engine, structure templates and the opt-in update check shipped (all with GUI surfaces). Utilities, packaging, signing and the configurable keymap engine remain | `script`, `template`, `update` |
+| 5 ◐ | Scripting engine, structure templates, opt-in update check and the configurable keymap engine shipped (all with GUI surfaces). Utilities, packaging and signing remain | `script`, `template`, `update`, `keymap` |
 
 Stage 3 ships `internal/recovery`, `internal/browser` and `internal/forensics`.
 `internal/dump` still holds only its planned sub-directory layout, which is
@@ -390,10 +410,12 @@ with the read-only `gohex` capability module, the service exposes it as
 `ScriptRun`, and the GUI gained a Script panel. Structure templates
 (`internal/template`) followed the same shape: a strict parser, an
 all-or-nothing apply and a GUI Template panel. The opt-in update check
-(`internal/update`) closed the engine slice: soft failures, audited probes,
-no outbound connection unless `GOHEX_UPDATE_CHECK=1`. The remaining stage-5
-scope — utilities, packaging, signing and the configurable keymap engine
-(the `shortcuts` map is already reserved in `internal/config`) — is next.
+(`internal/update`) brought soft failures and audited probes with no
+outbound connection unless `GOHEX_UPDATE_CHECK=1`, and the keymap engine
+(`internal/keymap`) made the shortcut map a validated, editable
+configuration instead of hard-coded key handlers. The remaining stage-5
+scope — utilities, packaging and signing — is release engineering on top
+of the shipped engines.
 Non-goal forever: anti-forensic features, credential extraction, stealth —
 see [legal.md](legal.md).
 
