@@ -28,6 +28,9 @@ import * as memory$0 from "../memory/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as recovery$0 from "../recovery/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as template$0 from "../template/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -530,6 +533,28 @@ export function StartupInfo(): $CancellablePromise<$models.StartupInfo> {
  */
 export function Stat(path: string): $CancellablePromise<$models.FileInfo> {
     return $Call.ByID(3942465492, path);
+}
+
+/**
+ * TemplateApply overlays the template file on an open document at the
+ * given absolute offset and returns every field's decoded value. The
+ * whole template span must be readable; a template that runs past the
+ * end of the document is an error, not a half-filled table. Each apply
+ * re-reads the template file (recorded in the audit log as
+ * "template-apply"); reading the open document itself needs no extra
+ * record, exactly like the search bar.
+ */
+export function TemplateApply(path: string, id: number, offset: number): $CancellablePromise<template$0.Value[] | null> {
+    return $Call.ByID(1756987300, path, id, offset);
+}
+
+/**
+ * TemplateLoad parses a template file (WinHex-style key=value structure
+ * definition) and returns its field table. The read is recorded in the
+ * audit log; nothing is applied to any document yet.
+ */
+export function TemplateLoad(path: string): $CancellablePromise<$models.TemplateInfo> {
+    return $Call.ByID(4069778924, path);
 }
 
 /**

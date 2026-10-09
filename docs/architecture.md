@@ -12,7 +12,7 @@ later stages plug in.
 │ frontend/            Svelte 5 + TypeScript (Wails webview) │
 │   virtual hex grid · tabs · find panel · dialogs · i18n    │
 ├──────────────────── generated bindings ────────────────────┤
-│ internal/service     RPC façade (65 methods, events)        │
+│ internal/service     RPC façade (67 methods, events)        │
 │   documents, search, hashing, images, partitions, fs, ...  │
 ├────────────────────────────────────────────────────────────┤
 │ internal/hex         Document: journal, undo/redo, search  │
@@ -25,6 +25,7 @@ later stages plug in.
 │ internal/browser     Chrome/Firefox/Safari artefact reader │
 │ internal/forensics   case, evidence, timeline, reports     │
 │ internal/script      sandboxed Starlark engine (read-only) │
+│ internal/template    structure-template overlay (WinHex-style) │
 │ internal/sqlite      read-only SQLite + WAL merge (no cgo) │
 │ internal/encoding    text codecs, Intel-HEX, S-records     │
 │ internal/hash        sha*, md5, crc32/c, blake3, xxhash64  │
@@ -290,6 +291,29 @@ capped (500 hits per call, 4 KiB patterns). The GUI Script panel runs a
 chosen `.star` file and shows the captured output; it never writes anything
 — scripts read the live document, including unsaved edits.
 
+### Structure templates
+
+`internal/template` is the structure-overlay engine: a flat list of
+offset-addressed typed fields (the WinHex template model), parsed from a
+strict `key=value` file format and applied to any `io.ReaderAt` — in the
+service, an open document.
+
+- **Strict parsing.** An unknown key or type, a missing name, a duplicate
+  Type/Name or a bad offset is an error at load time, never a silently
+  skipped field: a wrong template is refused before it can mislabel data.
+- **Typed display, not typed storage.** Fields decode into display strings —
+  integers as hex + decimal, FILETIME and Unix times as UTC timestamps
+  (values past year 9999 report "out of range" instead of wrapping), GUIDs
+  in the Microsoft mixed-endian layout regardless of the template's byte
+  order, strings NUL-trimmed and quoted.
+- **All-or-nothing apply.** A template whose span runs past the end of the
+  document is an error; a half-filled table would be worse than no table.
+
+The service exposes `TemplateLoad` (parse + audit) and `TemplateApply`
+(overlay at an offset, audited per apply). The GUI Template panel shows the
+field table, an offset box with a "use cursor" shortcut, and the decoded
+values.
+
 ### Service events
 
 The service emits `progress` events (`op`, `done`) for long operations
@@ -330,7 +354,7 @@ re-render. The store is the only shared mutable state.
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
 | 3 ◐ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems and multi-segment E01/L01 image sets are done. `internal/dump` still holds only its planned layout | `recovery`, `browser`, `forensics`, `dump` |
 | 4 ✅ | Memory viewer & crash-dump analyzer: LiME, AVML (Snappy), raw, ELF core, Windows minidump and Windows 64-bit dumps (complete + bitmap) | `memory` |
-| 5 ◐ | Scripting engine shipped (sandboxed Starlark + GUI runner). Utilities, packaging, signing and the configurable keymap engine remain | `script` |
+| 5 ◐ | Scripting engine and structure templates shipped (sandboxed Starlark + WinHex-style overlays, both with GUI panels). Utilities, packaging, signing and the configurable keymap engine remain | `script`, `template` |
 
 Stage 3 ships `internal/recovery`, `internal/browser` and `internal/forensics`.
 `internal/dump` still holds only its planned sub-directory layout, which is
@@ -349,7 +373,9 @@ segment or a mixed E01/L01 set is rejected up front instead of silently
 reading short.
 Stage 5 opened with the scripting engine: `internal/script` embeds Starlark
 with the read-only `gohex` capability module, the service exposes it as
-`ScriptRun`, and the GUI gained a Script panel. The remaining stage-5 scope
+`ScriptRun`, and the GUI gained a Script panel. Structure templates
+(`internal/template`) followed the same shape: a strict parser, an
+all-or-nothing apply and a GUI Template panel. The remaining stage-5 scope
 — utilities, packaging, signing and the configurable keymap engine (the
 `shortcuts` map is already reserved in `internal/config`) — is next.
 Non-goal forever: anti-forensic features, credential extraction, stealth —

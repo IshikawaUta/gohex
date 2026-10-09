@@ -25,6 +25,7 @@ class Store {
   showMemory = $state(false);
   showCase = $state(false);
   showScript = $state(false);
+  showTemplate = $state(false);
   findOpen = $state(false);
   pendingNibble = $state(-1);
   revealFn: ((off: number, selLen?: number) => void) | null = null;

@@ -258,6 +258,50 @@ log as a `script` event with the script's path, duration and outcome.
 Scripts read the *open document*, including unsaved in-memory edits, not the
 file on disk.
 
+## Structure templates (Stage 5)
+
+Toolbar → **Template** overlays a named structure definition on the active
+document — the WinHex template workflow for reading PE headers, partition
+records, log entries or any other fixed-layout structure without guessing
+offsets by hand.
+
+Template files are plain text (`*.tpl`), WinHex-compatible in shape:
+
+```
+Template=DOS Header
+Comment=First 64 bytes of a PE file
+
+Offset=0
+Type=u16
+Name=e_magic
+Description=Magic number
+
+Offset=2
+Type=u16[2]
+Name=e_cblp
+
+Offset=8
+Type=string[8]
+Name=e_res
+```
+
+Supported types: `u8/u16/u32/u64`, `i8/i16/i32/i64`, `f32/f64`,
+`bytes[N]`, `string[N]` (alias `char[N]`), `guid` (16 bytes, Microsoft
+mixed-endian layout), `filetime` (Windows FILETIME → UTC timestamp),
+`unixtime` (u32 seconds → UTC) and `bool8/bool16/bool32`. Arrays use
+`Type=u32[4]` or a separate `Count=4` key. `Endian=big` switches
+multi-byte order for the whole template (GUIDs stay mixed-endian).
+`Offset=` starts a new field; `Type` and `Name` are required per field.
+Parsing is strict — an unknown key or type is refused, never skipped.
+
+Open a document, load the template, set the **Offset** (or click **Cursor**
+to reuse the hex view's cursor position) and **Apply**. Every field is
+shown with its absolute offset and a formatted value: integers as hex plus
+decimal, FILETIME and Unix times as UTC timestamps, GUIDs in the standard
+`{xxxxxxxx-xxxx-…}` layout. A template whose span runs past the end of the
+document is refused rather than half-filled. Loading and each apply are
+recorded in the audit log; templates only ever read.
+
 ## Preferences (⚙ or `Ctrl+,`)
 
 | Setting | Notes |

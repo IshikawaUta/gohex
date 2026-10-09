@@ -65,6 +65,13 @@
   >
     Script
   </button>
+  <button
+    class="tb"
+    onclick={() => (store.showTemplate = true)}
+    title="Overlay a structure template on the active document (read-only)"
+  >
+    Template
+  </button>
   <span class="sep"></span>
   <button
     class="tb"

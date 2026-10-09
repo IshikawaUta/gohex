@@ -20,5 +20,7 @@ export type {
     SaveResult,
     ScriptResult,
     StartupInfo,
+    TemplateField,
+    TemplateInfo,
     WindowData
 } from "./models.js";

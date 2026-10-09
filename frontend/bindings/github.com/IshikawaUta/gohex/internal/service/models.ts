@@ -194,6 +194,31 @@ export interface StartupInfo {
 }
 
 /**
+ * TemplateField is one field of a parsed template, for the GUI's field
+ * table.
+ */
+export interface TemplateField {
+    "name": string;
+    "type": string;
+    "offset": number;
+    "count": number;
+    "size": number;
+    "description"?: string;
+}
+
+/**
+ * TemplateInfo is the JSON-serialisable snapshot of a parsed template.
+ */
+export interface TemplateInfo {
+    "path": string;
+    "name": string;
+    "comment"?: string;
+    "size": number;
+    "bigEndian": boolean;
+    "fields": TemplateField[] | null;
+}
+
+/**
  * WindowData is one viewport slice: raw bytes plus the decoded text column.
  */
 export interface WindowData {

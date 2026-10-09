@@ -98,6 +98,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   capped `print()` output. Failures are reported with the interpreter
   backtrace in the result (not as a Go error), and every run is audited as
   a `script` event. Exposed as `ScriptRun` with a GUI Script panel.
+- **Structure templates** (`internal/template`): WinHex-style structure
+  overlays — a strict key=value template format with typed fields (signed
+  and unsigned integers, floats, byte buffers, strings, GUIDs in the
+  Microsoft mixed-endian layout, FILETIME and Unix timestamps, booleans,
+  arrays, little/big endian), applied to an open document at any offset with
+  all-or-nothing span validation. Exposed as `TemplateLoad`/`TemplateApply`
+  with per-apply audit records and a GUI Template panel that can reuse the
+  cursor offset.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 
