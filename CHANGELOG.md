@@ -106,6 +106,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   all-or-nothing span validation. Exposed as `TemplateLoad`/`TemplateApply`
   with per-apply audit records and a GUI Template panel that can reuse the
   cursor offset.
+- **Update check** (`internal/update`): opt-in probe of the GitHub latest-
+  release endpoint (`GOHEX_UPDATE_CHECK=1`, `GOHEX_UPDATE_URL` override) with
+  numeric-segment + prerelease version ordering; every failure mode (offline,
+  HTTP error, malformed or oversized response) is reported as data in the
+  result, never as a Go error. Exposed as `UpdateCheck` with an audited
+  probe and a **Check for updates** button in the About panel.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

@@ -12,7 +12,7 @@ later stages plug in.
 │ frontend/            Svelte 5 + TypeScript (Wails webview) │
 │   virtual hex grid · tabs · find panel · dialogs · i18n    │
 ├──────────────────── generated bindings ────────────────────┤
-│ internal/service     RPC façade (67 methods, events)        │
+│ internal/service     RPC façade (68 methods, events)        │
 │   documents, search, hashing, images, partitions, fs, ...  │
 ├────────────────────────────────────────────────────────────┤
 │ internal/hex         Document: journal, undo/redo, search  │
@@ -26,6 +26,7 @@ later stages plug in.
 │ internal/forensics   case, evidence, timeline, reports     │
 │ internal/script      sandboxed Starlark engine (read-only) │
 │ internal/template    structure-template overlay (WinHex-style) │
+│ internal/update      opt-in update check (GitHub releases) │
 │ internal/sqlite      read-only SQLite + WAL merge (no cgo) │
 │ internal/encoding    text codecs, Intel-HEX, S-records     │
 │ internal/hash        sha*, md5, crc32/c, blake3, xxhash64  │
@@ -314,6 +315,19 @@ The service exposes `TemplateLoad` (parse + audit) and `TemplateApply`
 field table, an offset box with a "use cursor" shortcut, and the decoded
 values.
 
+### Update check
+
+`internal/update` probes the GitHub "latest release" endpoint for a newer
+GoHex version. It is strictly opt-in (`GOHEX_UPDATE_CHECK=1`; see
+[legal.md](legal.md) — no outbound connections by default), and every
+failure mode is soft data: an unreachable server, an HTTP error, a
+malformed or oversized response lands in `Result.Error`, never as a Go
+error or a panic. Version ordering is a small numeric-segment comparator
+with prerelease precedence (`1.0.0 > 1.0.0-rc2 > 1.0.0-rc1`, build
+metadata ignored). The service audits enabled probes; disabled checks are
+local and unaudited. `GOHEX_UPDATE_URL` overrides the endpoint for mirrors
+and offline test fixtures.
+
 ### Service events
 
 The service emits `progress` events (`op`, `done`) for long operations
@@ -354,7 +368,7 @@ re-render. The store is the only shared mutable state.
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
 | 3 ◐ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems and multi-segment E01/L01 image sets are done. `internal/dump` still holds only its planned layout | `recovery`, `browser`, `forensics`, `dump` |
 | 4 ✅ | Memory viewer & crash-dump analyzer: LiME, AVML (Snappy), raw, ELF core, Windows minidump and Windows 64-bit dumps (complete + bitmap) | `memory` |
-| 5 ◐ | Scripting engine and structure templates shipped (sandboxed Starlark + WinHex-style overlays, both with GUI panels). Utilities, packaging, signing and the configurable keymap engine remain | `script`, `template` |
+| 5 ◐ | Scripting engine, structure templates and the opt-in update check shipped (all with GUI surfaces). Utilities, packaging, signing and the configurable keymap engine remain | `script`, `template`, `update` |
 
 Stage 3 ships `internal/recovery`, `internal/browser` and `internal/forensics`.
 `internal/dump` still holds only its planned sub-directory layout, which is
@@ -375,9 +389,11 @@ Stage 5 opened with the scripting engine: `internal/script` embeds Starlark
 with the read-only `gohex` capability module, the service exposes it as
 `ScriptRun`, and the GUI gained a Script panel. Structure templates
 (`internal/template`) followed the same shape: a strict parser, an
-all-or-nothing apply and a GUI Template panel. The remaining stage-5 scope
-— utilities, packaging, signing and the configurable keymap engine (the
-`shortcuts` map is already reserved in `internal/config`) — is next.
+all-or-nothing apply and a GUI Template panel. The opt-in update check
+(`internal/update`) closed the engine slice: soft failures, audited probes,
+no outbound connection unless `GOHEX_UPDATE_CHECK=1`. The remaining stage-5
+scope — utilities, packaging, signing and the configurable keymap engine
+(the `shortcuts` map is already reserved in `internal/config`) — is next.
 Non-goal forever: anti-forensic features, credential extraction, stealth —
 see [legal.md](legal.md).
 

@@ -336,6 +336,16 @@ Saved to `~/.config/gohex/config.json` (platform user-config dir).
 The `shortcuts` map in `config.json` is reserved for the configurable keymap
 engine planned for stage 5.
 
+## Updates
+
+GoHex never phones home. The **About** dialog (toolbar `?`) has a **Check
+for updates** button, and it only makes a network request when you have
+opted in with `GOHEX_UPDATE_CHECK=1` — the request goes to the GoHex GitHub
+releases endpoint (or `GOHEX_UPDATE_URL` if set), compares the latest
+release tag with the running version and shows the result. A failed check
+reports why; it never blocks anything else. Enabled checks are recorded in
+the audit log.
+
 ## Environment variables
 
 | Variable | Effect |
@@ -345,6 +355,7 @@ engine planned for stage 5.
 | `GOHEX_THEME` / `GOHEX_LANG` / `GOHEX_PROFILE` | Override preferences |
 | `GOHEX_ALLOW_UNSAFE_WRITE=1` | Enable physical-disk write capability |
 | `GOHEX_UPDATE_CHECK=1` | Opt in to update checks (off by default) |
+| `GOHEX_UPDATE_URL` | Override the update-check endpoint (mirrors, offline fixtures) |
 
 ## Audit log
 

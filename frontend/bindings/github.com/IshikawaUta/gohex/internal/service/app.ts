@@ -31,6 +31,9 @@ import * as recovery$0 from "../recovery/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as template$0 from "../template/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as update$0 from "../update/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -569,6 +572,21 @@ export function Translate(lang: string, key: string, ...args: any[]): $Cancellab
  */
 export function Undo(id: number): $CancellablePromise<string> {
     return $Call.ByID(725279852, id);
+}
+
+/**
+ * UpdateCheck probes the GoHex GitHub releases for a newer version.
+ * 
+ * GoHex makes no outbound connections by default (docs/legal.md): the
+ * probe only runs when the examiner opts in with GOHEX_UPDATE_CHECK=1.
+ * When disabled — the default — the call is local and returns immediately
+ * with Result.Error explaining why. A failed probe (offline, server error)
+ * is reported in Result.Error too, never as a Go error: an update check
+ * must not be able to break anything else. Enabled runs are recorded in
+ * the audit log.
+ */
+export function UpdateCheck(): $CancellablePromise<update$0.Result> {
+    return $Call.ByID(1667247785);
 }
 
 /**

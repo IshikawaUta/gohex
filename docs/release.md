@@ -46,7 +46,8 @@ Every release build:
    migration notes.
 4. Tag `vX.Y.Z` and push; release CI builds artifacts for the matrix above.
 5. Attach checksums (SHA-256) to the GitHub release; sign artifacts when the
-   signing stage (5) lands.
+   signing stage (5) lands. With `GOHEX_UPDATE_CHECK=1`, the About panel's
+   update check should then report the new version.
 6. Verify on a clean machine: install → first-run disclaimer → open a sample
    → hash matches → save in sandbox mode.
 

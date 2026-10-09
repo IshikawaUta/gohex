@@ -29,6 +29,7 @@ Stage 1 (hex editor core + GUI shell) and Stage 2 (disk images, partitions, read
 | Browser artifact parser | ◐ stage 3 |
 | Memory viewer & crash-dump analyzer (LiME/AVML/raw/ELF core/minidump/Windows dumps) | ✅ stage 4 |
 | Scripting engine + structure templates (sandboxed Starlark, WinHex-style overlays, GUI panels) | ✅ stage 5 |
+| Update check (opt-in GitHub releases probe) | ✅ stage 5 |
 | Utilities, packaging, signing, configurable keymap engine | 🔜 stage 5 |
 
 ## Build & run

@@ -1,9 +1,26 @@
 <script lang="ts">
   import { store } from "../state.svelte";
-  import { svc } from "../api";
+  import { svc, errMsg } from "../api";
+  import type {
+    Result,
+  } from "../../../bindings/github.com/IshikawaUta/gohex/internal/update/models";
 
   let ver = $state("");
+  let updateRes = $state<Result | null>(null);
+  let checking = $state(false);
   svc.Version().then((v) => (ver = v));
+
+  async function checkUpdate(): Promise<void> {
+    checking = true;
+    updateRes = null;
+    try {
+      updateRes = await svc.UpdateCheck();
+    } catch (e) {
+      updateRes = { current: ver, available: false, error: errMsg(e) };
+    } finally {
+      checking = false;
+    }
+  }
 </script>
 
 <div
@@ -28,8 +45,24 @@
       <tr><td>Engine</td><td>Go + Wails v3 + Svelte 5</td></tr>
       <tr><td>Telemetry</td><td>None — fully offline</td></tr>
     </tbody></table>
+
+    {#if updateRes}
+      <p class="update" class:ok={updateRes.available} class:muted={!updateRes.available}>
+        {#if updateRes.error}
+          {updateRes.error}
+        {:else if updateRes.available}
+          Update available: {updateRes.latest} — {updateRes.url ?? ""}
+        {:else}
+          You are up to date ({updateRes.latest ?? updateRes.current}).
+        {/if}
+      </p>
+    {/if}
+
     <p class="disc">{store.t("dialog.disclaimer.body")}</p>
     <div class="actions">
+      <button onclick={() => void checkUpdate()} disabled={checking}>
+        {checking ? "Checking…" : "Check for updates"}
+      </button>
       <button class="primary" onclick={() => (store.showAbout = false)}>Close</button>
     </div>
   </div>
@@ -82,6 +115,17 @@
     width: 110px;
   }
 
+  .update {
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: var(--text-dim);
+    word-break: break-all;
+  }
+
+  .update.ok {
+    color: var(--accent);
+  }
+
   .disc {
     font-size: 11.5px;
     color: var(--text-dim);
@@ -92,6 +136,7 @@
   .actions {
     display: flex;
     justify-content: flex-end;
+    gap: 8px;
     margin-top: 14px;
   }
 </style>
