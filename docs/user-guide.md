@@ -117,22 +117,30 @@ for authorized examination only, and it never extracts credentials or live
 process data.
 
 1. **Open capture…** selects the file. GoHex recognises LiME v1 captures
-   (`EMiL` magic, physical ranges), Linux ELF core dumps (virtual `PT_LOAD`
-   ranges) and Windows minidumps (virtual ranges from the memory streams);
+   (`EMiL` magic, physical ranges), AVML v2 captures (`AVML` magic, physical
+   ranges stored as Snappy-framed compressed blocks), Linux ELF core dumps
+   (virtual `PT_LOAD` ranges), Windows minidumps (virtual ranges from the
+   memory streams) and Windows 64-bit crash dumps (`PAGEDU64`: complete
+   dumps with physical runs, and bitmap dumps whose set pages are mapped);
    a headerless dump opens as a single segment without an address map.
 2. The segment table lists every range: its start–end address, byte length
-   and file offset. Select a row to **Open segment as hex**, or **Open
-   capture as hex** for the whole file.
+   and file offset (virtual offset for compressed captures). Select a row to
+   **Open segment as hex**, or **Open capture as hex** for the whole file.
+   AVML captures are decompressed on the fly — the hex view always shows
+   uncompressed bytes.
 3. Type an **Address** (decimal or `0x…` hex) and **Locate** to map it onto
    the file offset holding that byte; **Open at address** loads the editor
    window from there to the end of its segment. Addresses are physical for
-   LiME captures and virtual for cores and minidumps — always use the
-   dump's own address space.
+   LiME, AVML and Windows dumps and virtual for cores and minidumps —
+   always use the dump's own address space.
 
 Everything is strictly read-only — the capture is never modified, and a
-truncated dump is clamped to the bytes that exist. Windows kernel dumps
-(`PAGEDU64`/`PAGEDUMP`) and AVML captures are not yet supported and report
-an explicit error (roadmap stage 4).
+truncated dump is clamped to the bytes that exist. Gaps between segments
+(all-zero pages elided by AVML writers, pages absent from a Windows dump
+bitmap) are not part of the map and report "not covered". 32-bit Windows
+dumps (`PAGEDUMP`), Windows kernel and small memory dumps, and Windows 8+
+compressed kernel dumps are not yet supported and report an explicit error
+(future work).
 
 ## Carving
 

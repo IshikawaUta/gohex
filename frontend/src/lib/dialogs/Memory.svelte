@@ -17,6 +17,7 @@
 
   let segments = $derived(cap?.segments ?? []);
   let selected = $derived(sel >= 0 && sel < segments.length ? segments[sel] : null);
+  let offsetLabel = $derived(cap?.compressed ? "virtual offset" : "file offset");
 
   async function choose(): Promise<void> {
     try {
@@ -73,7 +74,7 @@
       const phys = parseNum(physText);
       located = await svc.MemoryLocate(path, phys);
       sel = located.segment;
-      flash(`${fmtAddr(phys)} → file offset ${fmtOffset(located.offset)}`);
+      flash(`${fmtAddr(phys)} → ${offsetLabel} ${fmtOffset(located.offset)}`);
     } catch (e) {
       located = null;
       error = errMsg(e);
@@ -82,12 +83,16 @@
     }
   }
 
-  async function openRange(offset: number, size: number): Promise<void> {
-    if (!path || size <= 0) return;
+  async function openWindow(offset: number, size: number): Promise<void> {
+    if (!path || !cap) return;
     busy = true;
     error = "";
     try {
-      const doc = await svc.OpenRange(path, offset, size);
+      // Compressed captures (AVML) go through MemoryOpen, which presents
+      // the uncompressed virtual view; everything else is a plain range.
+      const doc = cap.compressed
+        ? await svc.MemoryOpen(path, offset, size)
+        : await svc.OpenRange(path, offset, size);
       store.activeId = doc.id;
       await A.refreshDocs();
       A.syncSelectionFromDoc();
@@ -102,19 +107,20 @@
 
   function openWhole(): void {
     if (!cap) return;
-    void openRange(0, cap.size);
+    // size 0 means "to the end" for both service calls.
+    void openWindow(0, 0);
   }
 
   function openSelected(): void {
     if (!selected) return;
-    void openRange(selected.offset, selected.length);
+    void openWindow(selected.offset, selected.length);
   }
 
   function openLocated(): void {
     if (!located) return;
     const seg = segments[located.segment];
     if (!seg) return;
-    void openRange(located.offset, seg.offset + seg.length - located.offset);
+    void openWindow(located.offset, seg.offset + seg.length - located.offset);
   }
 
   function fmtSize(n: number): string {
@@ -163,6 +169,9 @@
         <span class="dim">
           {cap.hasMap ? "address map" : "no address map — headerless dump"}
         </span>
+        {#if cap.compressed}
+          <span class="dim">Snappy-compressed — decompressed on the fly</span>
+        {/if}
         <span class="spacer"></span>
         {#if cap.hasMap}
           <label class="field">
@@ -191,7 +200,7 @@
           <th>#</th>
           <th>Address range</th>
           <th>Length</th>
-          <th>File offset</th>
+          <th>{offsetLabel}</th>
         </tr>
       </thead>
       <tbody>

@@ -359,6 +359,17 @@ export function MemoryLocate(path: string, addr: number): $CancellablePromise<me
 }
 
 /**
+ * MemoryOpen opens a memory capture or crash dump as its own hex document,
+ * exposing the capture's uncompressed byte space: for compressed captures
+ * (AVML) each Snappy block is decompressed on demand, and for every format
+ * the document covers the whole capture (offset 0, size 0 = everything).
+ * The access is recorded in the audit log.
+ */
+export function MemoryOpen(path: string, offset: number, size: number): $CancellablePromise<$models.DocInfo> {
+    return $Call.ByID(722738885, path, offset, size);
+}
+
+/**
  * NewDocument creates an empty untitled buffer.
  */
 export function NewDocument(): $CancellablePromise<$models.DocInfo> {

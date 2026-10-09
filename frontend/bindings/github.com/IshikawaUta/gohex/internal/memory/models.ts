@@ -13,6 +13,11 @@ export interface Capture {
      * address map available
      */
     "hasMap": boolean;
+
+    /**
+     * payloads are compressed; use OpenReader
+     */
+    "compressed": boolean;
     "segments": Segment[] | null;
 }
 
@@ -34,15 +39,14 @@ export interface Location {
 /**
  * Segment is one contiguous run of memory stored in the capture. For mapped
  * segments Length == AddrEnd - AddrStart; AddrEnd is exclusive. The address
- * range is physical for LiME captures and virtual for ELF cores and
- * minidumps. Captures without an address map (raw) carry Offset/Length only.
+ * range is physical for LiME, AVML and Windows dumps and virtual for ELF
+ * cores and minidumps. Offset is the payload's byte offset in the file for
+ * uncompressed formats; for compressed captures (AVML) it is the dense
+ * virtual offset inside Reader's uncompressed view. Captures without an
+ * address map (raw) carry Offset/Length only.
  */
 export interface Segment {
     "index": number;
-
-    /**
-     * byte offset of the payload in the file
-     */
     "offset": number;
     "length": number;
     "addrStart": number;

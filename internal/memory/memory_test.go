@@ -1,7 +1,9 @@
 package memory
 
 import (
+	"bytes"
 	"encoding/binary"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -666,9 +668,8 @@ func TestNotYetSupported(t *testing.T) {
 		data    []byte
 		wantErr string
 	}{
-		{"pagedu64", append([]byte("PAGEDU64"), make([]byte, 64)...), "not yet supported"},
-		{"pagedump", append([]byte("PAGEDUMP"), make([]byte, 64)...), "not yet supported"},
-		{"avml", append([]byte("AVML\x01\x00\x00\x00"), make([]byte, 64)...), "not yet supported"},
+		{"pagedump32", append([]byte("PAGEDUMP"), make([]byte, 64)...), "not yet supported"},
+		{"kernel-dump", append([]byte("PAGEDU64"), make([]byte, winDumpHeaderSize)...), "unsupported Windows dump type"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := Open(writeCapture(t, "dump.bin", tc.data))
@@ -676,5 +677,505 @@ func TestNotYetSupported(t *testing.T) {
 				t.Fatalf("err = %v, want error containing %q", err, tc.wantErr)
 			}
 		})
+	}
+}
+
+// --- AVML builders and tests -----------------------------------------------
+
+// avmlBlock builds one AVML v2 block: 32-byte header, Snappy framed
+// stream, 8-byte compressed-length trailer. plain must match the declared
+// address span (end inclusive).
+func avmlBlock(start, end uint64, plain []byte) []byte {
+	h := make([]byte, avmlHeader)
+	copy(h, avmlMagic)
+	binary.LittleEndian.PutUint32(h[4:], 2)
+	binary.LittleEndian.PutUint64(h[8:], start)
+	binary.LittleEndian.PutUint64(h[16:], end)
+	out := append([]byte(nil), h...)
+	out = append(out, snappyStreamID...)
+	out = append(out, snappyCompressedFrame(plain)...)
+	var trailer [8]byte
+	binary.LittleEndian.PutUint64(trailer[:], uint64(len(out)-avmlHeader))
+	return append(out, trailer[:]...)
+}
+
+func TestAVMLParseAndRead(t *testing.T) {
+	// Two blocks written out of address order; payloads derive from the
+	// address so Reader output can be verified byte-by-byte. A gap between
+	// the blocks stands in for elided all-zero pages.
+	lo, hi := payloadFor(0x1000, 256), payloadFor(0x40000000, 4096)
+	data := append(avmlBlock(0x40000000, 0x40000FFF, hi), avmlBlock(0x1000, 0x10FF, lo)...)
+	c, err := Open(writeCapture(t, "ram.avml", data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Format != FormatAVML || !c.HasMap || !c.Compressed {
+		t.Fatalf("capture = %+v", c)
+	}
+	want := []Segment{
+		{Index: 0, Offset: 0, Length: 256, AddrStart: 0x1000, AddrEnd: 0x1100},
+		{Index: 1, Offset: 256, Length: 4096, AddrStart: 0x40000000, AddrEnd: 0x40001000},
+	}
+	if len(c.Segments) != len(want) {
+		t.Fatalf("got %d segments, want %d", len(c.Segments), len(want))
+	}
+	for i, w := range want {
+		if c.Segments[i] != w {
+			t.Errorf("segment %d = %+v, want %+v", i, c.Segments[i], w)
+		}
+	}
+
+	r, err := OpenReader(c.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	if r.Size() != 256+4096 || r.Format() != FormatAVML || r.Name() != c.Path {
+		t.Fatalf("reader = size %d format %s", r.Size(), r.Format())
+	}
+	// First byte, last byte and the cross-segment boundary.
+	for _, off := range []int64{0, 255, 256, 257, 256 + 4095} {
+		var b [1]byte
+		if _, err := r.ReadAt(b[:], off); err != nil {
+			t.Fatalf("ReadAt(%d): %v", off, err)
+		}
+		want := byte(0x1000 + off) // dense view: address = first block + offset
+		if off >= 256 {
+			want = byte(0x40000000 + (off - 256))
+		}
+		if b[0] != want {
+			t.Errorf("ReadAt(%d) = %#x, want %#x", off, b[0], want)
+		}
+	}
+	// A full read across both segments.
+	full := make([]byte, r.Size())
+	if n, err := r.ReadAt(full, 0); err != nil || n != len(full) {
+		t.Fatalf("full read: n=%d err=%v", n, err)
+	}
+	if !bytes.Equal(full[:256], lo) || !bytes.Equal(full[256:], hi) {
+		t.Fatal("full read mismatch")
+	}
+	// Locate maps physical addresses onto dense virtual offsets.
+	for _, addr := range []int64{0x1000, 0x10FF, 0x40000000, 0x40000FFF} {
+		loc, err := c.Locate(addr)
+		if err != nil {
+			t.Fatalf("Locate(%#x): %v", addr, err)
+		}
+		var b [1]byte
+		if _, err := r.ReadAt(b[:], loc.Offset); err != nil {
+			t.Fatalf("ReadAt(Locate(%#x)): %v", addr, err)
+		}
+		if b[0] != byte(addr) {
+			t.Errorf("Locate(%#x) -> %d holds %#x", addr, loc.Offset, b[0])
+		}
+	}
+	// The elided gap has no segment.
+	if _, err := c.Locate(0x2000); err == nil || !strings.Contains(err.Error(), "not covered") {
+		t.Errorf("Locate(gap) = %v, want not-covered error", err)
+	}
+	// Reads past the end behave like io.ReaderAt.
+	if _, err := r.ReadAt(make([]byte, 1), r.Size()); err != io.EOF {
+		t.Errorf("ReadAt(end) = %v, want EOF", err)
+	}
+	if _, err := r.ReadAt(make([]byte, 1), -1); err == nil {
+		t.Error("ReadAt(-1) = nil, want error")
+	}
+}
+
+func TestAVMLUncompressedFrames(t *testing.T) {
+	// A block stored with uncompressed framed chunks instead of compressed
+	// ones still decodes.
+	plain := payloadFor(0x8000, 128)
+	h := make([]byte, avmlHeader)
+	copy(h, avmlMagic)
+	binary.LittleEndian.PutUint32(h[4:], 2)
+	binary.LittleEndian.PutUint64(h[8:], 0x8000)
+	binary.LittleEndian.PutUint64(h[16:], 0x8000+127)
+	stream := append(append([]byte(nil), snappyStreamID...), snappyUncompressedFrame(plain)...)
+	var trailer [8]byte
+	binary.LittleEndian.PutUint64(trailer[:], uint64(len(stream)))
+	data := append(append(h, stream...), trailer[:]...)
+
+	r, err := OpenReader(writeCapture(t, "uncomp.avml", data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	got := make([]byte, 128)
+	if _, err := r.ReadAt(got, 0); err != nil || !bytes.Equal(got, plain) {
+		t.Fatalf("read uncompressed block: %v", err)
+	}
+}
+
+func TestAVMLErrors(t *testing.T) {
+	good := avmlBlock(0x1000, 0x10FF, payloadFor(0x1000, 256))
+
+	badVersion := append([]byte(nil), good...)
+	binary.LittleEndian.PutUint32(badVersion[4:], 9)
+
+	badPad := append([]byte(nil), good...)
+	binary.LittleEndian.PutUint64(badPad[24:], 1)
+
+	inverted := append([]byte(nil), good...)
+	binary.LittleEndian.PutUint64(inverted[8:], 0x2000)
+	binary.LittleEndian.PutUint64(inverted[16:], 0x1000)
+
+	maxEnd := append([]byte(nil), good...)
+	binary.LittleEndian.PutUint64(maxEnd[16:], ^uint64(0))
+
+	oversize := append([]byte(nil), good...)
+	binary.LittleEndian.PutUint64(oversize[8:], 0)
+	binary.LittleEndian.PutUint64(oversize[16:], avmlMaxBlock) // 16 MiB + 1 bytes
+
+	badTrailer := append([]byte(nil), good...)
+	binary.LittleEndian.PutUint64(badTrailer[len(badTrailer)-8:], 99)
+
+	badSecond := append(append([]byte(nil), good...), avmlBlock(0x5000, 0x500F, payloadFor(0x5000, 16))...)
+	badSecond[len(good)] = 'Z' // corrupt the second header's magic
+
+	// Trailer value points at the wrong position (claims a longer stream).
+	badTrailerPos := append([]byte(nil), good...)
+	binary.LittleEndian.PutUint64(badTrailerPos[len(badTrailerPos)-8:], uint64(len(good)))
+
+	for _, tc := range []struct {
+		name    string
+		data    []byte
+		wantErr string
+	}{
+		{"truncated-header", []byte("AVML\x02\x00\x00\x00"), "truncated AVML header"},
+		{"unsupported-version", badVersion, "unsupported AVML version"},
+		{"bad-padding", badPad, "bad AVML padding"},
+		{"inverted-range", inverted, "beyond end"},
+		{"max-end", maxEnd, "implausible end"},
+		{"oversize-block", oversize, "larger than"},
+		{"bad-trailer", badTrailer, "bad AVML compressed-length trailer"},
+		{"bad-trailer-pos", badTrailerPos, "bad AVML compressed-length trailer"},
+		{"bad-second-magic", badSecond, "bad AVML magic"},
+		{"truncated-stream", good[:len(good)-20], "truncated"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Open(writeCapture(t, "bad.avml", tc.data))
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("err = %v, want error containing %q", err, tc.wantErr)
+			}
+		})
+	}
+
+	// A stream that ends before the declared block size.
+	short := avmlBlock(0x1000, 0x1FFF, payloadFor(0x1000, 4096))
+	if _, err := Open(writeCapture(t, "short.avml", short[:len(short)-16])); err == nil {
+		t.Error("truncated stream: err = nil")
+	}
+}
+
+// --- Windows dump builders and tests ---------------------------------------
+
+// winRun is one physical memory run of a DumpType 1 dump.
+type winRun struct {
+	basePage uint64
+	pages    uint64
+}
+
+// buildWinDumpFull assembles a DumpType 1 (complete) 64-bit crash dump:
+// two header pages describing the runs, then the runs' pages back-to-back.
+func buildWinDumpFull(runs []winRun, data []byte) []byte {
+	hdr := make([]byte, winDumpHeaderSize)
+	copy(hdr, "PAGEDU64")
+	binary.LittleEndian.PutUint32(hdr[winDumpTypeOff:], winDumpTypeFull)
+	var totalPages uint64
+	for _, r := range runs {
+		totalPages += r.pages
+	}
+	binary.LittleEndian.PutUint32(hdr[winDumpPhysDesc:], uint32(len(runs)))
+	binary.LittleEndian.PutUint32(hdr[winDumpPhysDesc+4:], uint32(totalPages))
+	for i, r := range runs {
+		e := hdr[winDumpPhysDesc+winDumpRunBase+i*16:]
+		binary.LittleEndian.PutUint64(e[0:], r.basePage)
+		binary.LittleEndian.PutUint64(e[8:], r.pages)
+	}
+	return append(hdr, data...)
+}
+
+// buildWinDumpBitmap assembles a DumpType 5 (bitmap) 64-bit crash dump
+// whose summary header lists the given physical pages, each holding one
+// payload page derived from its address.
+func buildWinDumpBitmap(pages ...uint64) []byte {
+	maxPage := pages[len(pages)-1]
+	bitmapSize := int64((maxPage/32 + 1) * 4)
+	headerSize := winDumpSumBuf + int(bitmapSize)
+
+	sumHdr := make([]byte, winDumpSummary)
+	copy(sumHdr, "PAGEDU64")
+	binary.LittleEndian.PutUint32(sumHdr[winDumpTypeOff:], winDumpTypeBitmap)
+
+	sum := make([]byte, winDumpSumBuf)
+	binary.LittleEndian.PutUint64(sum[winDumpSumHdrSize:], uint64(headerSize))
+	binary.LittleEndian.PutUint64(sum[winDumpSumBmpSize:], uint64(bitmapSize))
+
+	bitmap := make([]byte, bitmapSize)
+	for _, p := range pages {
+		bitmap[p/8] |= 1 << (p % 8)
+	}
+
+	out := sumHdr
+	out = append(out, sum...)
+	out = append(out, bitmap...)
+	for _, p := range pages {
+		out = append(out, payloadFor(p*winDumpPageSize, int(winDumpPageSize))...)
+	}
+	return out
+}
+
+func TestWinDumpFullRuns(t *testing.T) {
+	// Two runs: a low 4-page run and a high 1-page run, written in run
+	// order; segments must come back sorted by physical address.
+	lo := payloadFor(0, 4*winDumpPageSize)
+	hi := payloadFor(0x100*winDumpPageSize, winDumpPageSize)
+	data := buildWinDumpFull([]winRun{{0, 4}, {0x100, 1}}, append(append([]byte(nil), lo...), hi...))
+	c, err := Open(writeCapture(t, "full.dmp", data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Format != FormatWinDump || !c.HasMap || c.Compressed {
+		t.Fatalf("capture = %+v", c)
+	}
+	want := []Segment{
+		{Index: 0, Offset: winDumpHeaderSize, Length: 4 * winDumpPageSize, AddrStart: 0, AddrEnd: 4 * winDumpPageSize},
+		{Index: 1, Offset: winDumpHeaderSize + 4*winDumpPageSize, Length: winDumpPageSize, AddrStart: 0x100000, AddrEnd: 0x101000},
+	}
+	if len(c.Segments) != len(want) {
+		t.Fatalf("segments = %+v", c.Segments)
+	}
+	for i, w := range want {
+		if c.Segments[i] != w {
+			t.Errorf("segment %d = %+v, want %+v", i, c.Segments[i], w)
+		}
+	}
+
+	r, err := OpenReader(c.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	if r.Size() != 5*winDumpPageSize {
+		t.Fatalf("reader size = %d", r.Size())
+	}
+	for _, off := range []int64{0, 4*winDumpPageSize - 1, 4 * winDumpPageSize, r.Size() - 1} {
+		var b [1]byte
+		if _, err := r.ReadAt(b[:], off); err != nil {
+			t.Fatalf("ReadAt(%d): %v", off, err)
+		}
+		want := byte(off)
+		if off >= 4*winDumpPageSize {
+			want = byte(0x100000 + off - 4*winDumpPageSize)
+		}
+		if b[0] != want {
+			t.Errorf("ReadAt(%d) = %#x, want %#x", off, b[0], want)
+		}
+	}
+	// Locate hands out file offsets for direct file reads.
+	f, err := os.Open(c.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	for _, addr := range []int64{0, 0x3FFF, 0x100000, 0x100FFF} {
+		loc, err := c.Locate(addr)
+		if err != nil {
+			t.Fatalf("Locate(%#x): %v", addr, err)
+		}
+		var b [1]byte
+		if _, err := f.ReadAt(b[:], loc.Offset); err != nil || b[0] != byte(addr) {
+			t.Errorf("Locate(%#x) -> %d: %#x %v", addr, loc.Offset, b[0], err)
+		}
+	}
+}
+
+func TestWinDumpBitmap(t *testing.T) {
+	// Pages 0, 1 and 3 present (page 2 elided, like a summary dump's
+	// sparse bitmap).
+	data := buildWinDumpBitmap(0, 1, 3)
+	c, err := Open(writeCapture(t, "bitmap.dmp", data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Format != FormatWinDump || len(c.Segments) != 2 {
+		t.Fatalf("capture = %+v", c)
+	}
+	first, second := c.Segments[0], c.Segments[1]
+	if first.AddrStart != 0 || first.Length != 2*winDumpPageSize {
+		t.Errorf("segment 0 = %+v", first)
+	}
+	if second.AddrStart != 3*winDumpPageSize || second.Length != winDumpPageSize {
+		t.Errorf("segment 1 = %+v", second)
+	}
+
+	r, err := OpenReader(c.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	if r.Size() != 3*winDumpPageSize {
+		t.Fatalf("reader size = %d", r.Size())
+	}
+	// Byte k of each present page derives from its physical address; the
+	// reader's dense offsets skip the summary header and the elided page.
+	for _, tc := range []struct {
+		dense int64
+		addr  byte
+	}{
+		{0, 0},
+		{winDumpPageSize - 1, 0xFF},
+		{winDumpPageSize, 0},
+		{2 * winDumpPageSize, 0}, // dense page 2 is physical page 3
+	} {
+		var b [1]byte
+		if _, err := r.ReadAt(b[:], tc.dense); err != nil || b[0] != tc.addr {
+			t.Errorf("ReadAt(%d) = %#x %v, want %#x", tc.dense, b[0], err, tc.addr)
+		}
+	}
+	// Locate hands out file offsets for direct file reads.
+	f, err := os.Open(c.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	for _, addr := range []int64{0, winDumpPageSize - 1, winDumpPageSize, 3 * winDumpPageSize} {
+		loc, err := c.Locate(addr)
+		if err != nil {
+			t.Fatalf("Locate(%#x): %v", addr, err)
+		}
+		var b [1]byte
+		if _, err := f.ReadAt(b[:], loc.Offset); err != nil || b[0] != byte(addr) {
+			t.Errorf("Locate(%#x) -> %d: %#x %v", addr, loc.Offset, b[0], err)
+		}
+	}
+	// The elided page 2 has no segment.
+	if _, err := c.Locate(2 * winDumpPageSize); err == nil || !strings.Contains(err.Error(), "not covered") {
+		t.Errorf("Locate(elided page) = %v, want not-covered error", err)
+	}
+}
+
+func TestWinDumpErrors(t *testing.T) {
+	truncated := make([]byte, 100)
+	copy(truncated, "PAGEDU64")
+
+	crashdump := buildWinDumpFull([]winRun{{0, 1}}, payloadFor(0, winDumpPageSize))
+	copy(crashdump[winDumpHeaderSize:], "CRASHDUMP") // Win8+ marker
+
+	emptyRuns := buildWinDumpFull(nil, nil)
+	binary.LittleEndian.PutUint32(emptyRuns[winDumpTypeOff:], winDumpTypeFull)
+
+	// Runs past the end of the header.
+	hugeRuns := buildWinDumpFull([]winRun{{0, 1}}, payloadFor(0, winDumpPageSize))
+	binary.LittleEndian.PutUint32(hugeRuns[winDumpPhysDesc:], 503)
+
+	// Dump data truncated mid-run.
+	shortData := buildWinDumpFull([]winRun{{0, 2}}, payloadFor(0, winDumpPageSize))
+	c, err := Open(writeCapture(t, "short.dmp", shortData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Segments[0].Length != winDumpPageSize {
+		t.Errorf("truncated run segment = %+v", c.Segments[0])
+	}
+
+	// Bitmap summary errors.
+	badBitmap := buildWinDumpBitmap(0)
+	binary.LittleEndian.PutUint64(badBitmap[winDumpSummary+winDumpSumBmpSize:], 3) // not a multiple of 4
+
+	hugeBitmap := buildWinDumpBitmap(0)
+	binary.LittleEndian.PutUint64(hugeBitmap[winDumpSummary+winDumpSumBmpSize:], 1<<29)
+
+	badDataOff := buildWinDumpBitmap(0)
+	binary.LittleEndian.PutUint64(badDataOff[winDumpSummary+winDumpSumHdrSize:], 1<<40)
+
+	emptyBitmap := buildWinDumpBitmap(0)
+	binary.LittleEndian.PutUint64(emptyBitmap[winDumpSummary+winDumpSumBmpSize:], 4)
+	copy(emptyBitmap[winDumpSummary+winDumpSumBuf:], make([]byte, 4)) // no bits set
+	// data start now points past EOF for a 0-page dump; keep it consistent.
+	// headerSize still 60, file is longer, so the error is "maps no pages".
+
+	for _, tc := range []struct {
+		name    string
+		data    []byte
+		wantErr string
+	}{
+		{"truncated-header", truncated, "truncated Windows dump header"},
+		{"win8-compressed", crashdump, "Windows 8+ compressed"},
+		{"no-runs", emptyRuns, "no physical memory runs"},
+		{"runs-past-header", hugeRuns, "exceeds the header"},
+		{"bad-bitmap-size", badBitmap, "not a multiple of 4"},
+		{"huge-bitmap", hugeBitmap, "implausible"},
+		{"bad-data-offset", badDataOff, "past end of file"},
+		{"empty-bitmap", emptyBitmap, "maps no pages"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Open(writeCapture(t, "bad.dmp", tc.data))
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("err = %v, want error containing %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+// --- Reader tests for uncompressed formats ---------------------------------
+
+func TestReaderUncompressed(t *testing.T) {
+	data := append(limeBlock(0x1000, 0x10FF), limeBlock(0x40000000, 0x40000FFF)...)
+	c, err := Open(writeCapture(t, "ram.lime", data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Compressed {
+		t.Fatal("lime capture marked compressed")
+	}
+	r, err := OpenReader(c.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	if r.Size() != 256+4096 || r.Format() != FormatLIME {
+		t.Fatalf("reader = %d %s", r.Size(), r.Format())
+	}
+	// Dense virtual view concatenates payloads, skipping headers.
+	got := make([]byte, r.Size())
+	if _, err := r.ReadAt(got, 0); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got[:256], payloadFor(0x1000, 256)) || !bytes.Equal(got[256:], payloadFor(0x40000000, 4096)) {
+		t.Fatal("dense read mismatch")
+	}
+	if _, err := r.ReadAt(make([]byte, 1), -1); err == nil {
+		t.Error("ReadAt(-1) = nil, want error")
+	}
+	if _, err := r.ReadAt(make([]byte, 1), r.Size()); err != io.EOF {
+		t.Errorf("ReadAt(end) = %v, want EOF", err)
+	}
+	// A short read at the end reports EOF with the partial count.
+	n, err := r.ReadAt(make([]byte, 16), r.Size()-4)
+	if n != 4 || err != io.EOF {
+		t.Errorf("short tail read: n=%d err=%v", n, err)
+	}
+}
+
+func TestReaderCompressedErrors(t *testing.T) {
+	good := avmlBlock(0x1000, 0x10FF, payloadFor(0x1000, 256))
+	// Corrupt the payload's CRC so decompression fails at read time.
+	bad := append([]byte(nil), good...)
+	bad[avmlHeader+snappyStreamIDLen+4] ^= 0xFF
+
+	r, err := OpenReader(writeCapture(t, "bad.avml", bad))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	if _, err := r.ReadAt(make([]byte, 1), 0); err == nil || !strings.Contains(err.Error(), "decompress") {
+		t.Errorf("ReadAt(corrupted) = %v, want decompress error", err)
+	}
+
+	// A missing file surfaces at OpenReader.
+	if _, err := OpenReader(filepath.Join(t.TempDir(), "missing.avml")); err == nil {
+		t.Error("OpenReader(missing) = nil, want error")
 	}
 }

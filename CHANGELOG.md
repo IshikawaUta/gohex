@@ -79,8 +79,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   dumps (`ET_CORE` `PT_LOAD` segments) and Windows minidumps (`Memory64List`
   / `MemoryList` streams) with virtual-address locate through the same
   `MemoryInfo`/`MemoryLocate` APIs and memory panel; truncated dumps are
-  clamped to the bytes that exist, and Windows kernel dumps (`PAGEDU64`) and
-  AVML report an explicit not-yet-supported error.
+  clamped to the bytes that exist.
+- **AVML & Windows kernel dumps** (`internal/memory`): AVML v2 captures —
+  LiME-shaped headers whose blocks are Snappy framed streams (three-byte
+  chunk lengths, masked CRC-32C) with an 8-byte length trailer — and
+  Windows 64-bit crash dumps (`PAGEDU64`): complete dumps via their
+  physical run table, bitmap dumps via the summary header's page bitmap.
+  A new `OpenReader`/`MemoryOpen` pair exposes any capture as an
+  uncompressed virtual view (AVML blocks decompress on demand), the memory
+  panel routes compressed captures through it, and remaining gaps — 32-bit
+  `PAGEDUMP`, Windows kernel/small dumps, Windows 8+ compressed dumps —
+  report explicit errors.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

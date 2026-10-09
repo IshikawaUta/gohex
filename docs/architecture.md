@@ -19,7 +19,7 @@ later stages plug in.
 │ internal/core        Sources: files, mmap, windowed reads  │
 │ internal/disk        MBR / EBR / GPT partition tables      │
 │ internal/image       image containers (raw, E01, VHD, ...) │
-│ internal/memory      memory dumps (LiME, ELF core, MDMP)  │
+│ internal/memory      memory dumps (LiME, AVML, ELF core, MDMP, windump) │
 │ internal/fs          read-only FAT/NTFS/ext/ISO/HFS+/APFS  │
 │ internal/recovery    signature-based file carving          │
 │ internal/browser     Chrome/Firefox/Safari artefact reader │
@@ -122,10 +122,26 @@ headers as virtual ranges; Windows minidumps take theirs from the
 `Locate` maps an address onto the byte offset holding it, and headerless
 raw dumps fall back to a single segment without an address map. Detection
 is magic-based like `internal/image`, truncated dumps are clamped to the
-bytes that exist, and nothing is ever written to the capture. The service
-surfaces it as `MemoryInfo`/`MemoryLocate` behind the one-time ethics
-notice `docs/legal.md` requires. Windows kernel dumps (`PAGEDU64`/
-`PAGEDUMP`) and AVML are detected but not yet parsed (roadmap stage 4).
+bytes that exist, and nothing is ever written to the capture.
+
+AVML v2 captures (magic `AVML`, LiME-shaped 32-byte headers) store each
+block as an in-house Snappy framed stream — chunk headers carry three-byte
+little-endian lengths and masked CRC-32C checksums — followed by an 8-byte
+compressed-length trailer; all-zero blocks are elided by writers, so their
+address gaps simply do not appear as segments. `OpenReader` exposes every
+capture as an uncompressed virtual `ReaderAt`: uncompressed formats read
+straight from the file, while AVML decompresses each block on demand and
+caches the segment being read. Windows 64-bit crash dumps (`PAGEDU64`)
+parse their `DumpType`: type 1 (complete) maps the physical runs' pages
+that follow the two header pages; type 5 (summary) walks the summary
+header's page bitmap, mapping set bits to consecutive data pages. Other
+dump types, 32-bit `PAGEDUMP` and Windows 8+ compressed kernel dumps report
+an explicit not-yet-supported error.
+
+The service surfaces all of this as `MemoryInfo`/`MemoryLocate` plus
+`MemoryOpen`, which registers a capture (or a byte range of its
+uncompressed view) as a hex document — the route compressed AVML takes —
+behind the one-time ethics notice `docs/legal.md` requires.
 
 ### Search
 
@@ -281,7 +297,7 @@ re-render. The store is the only shared mutable state.
 | 1 ✅ | Hex editor core + GUI shell | `core`, `hex`, `encoding`, `hash`, `audit`, `config`, `service` |
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
 | 3 ◐ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems and multi-segment E01/L01 image sets are done. `internal/dump` still holds only its planned layout | `recovery`, `browser`, `forensics`, `dump` |
-| 4 ◐ | Memory viewer & crash-dump analyzer: LiME/raw, ELF core and Windows minidump done; Windows kernel dumps + AVML still to come | `memory` |
+| 4 ✅ | Memory viewer & crash-dump analyzer: LiME, AVML (Snappy), raw, ELF core, Windows minidump and Windows 64-bit dumps (complete + bitmap) | `memory` |
 | 5 | Scripting, utilities, packaging, signing, configurable keymap engine | `script`, `template`, `update` |
 
 Stage 3 ships `internal/recovery`, `internal/browser` and `internal/forensics`.

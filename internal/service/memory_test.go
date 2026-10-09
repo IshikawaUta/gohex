@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"encoding/binary"
+	"hash/crc32"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -72,8 +74,11 @@ func TestMemoryErrors(t *testing.T) {
 	if _, err := app.MemoryInfo(filepath.Join(t.TempDir(), "missing.lime")); err == nil || !strings.Contains(err.Error(), "memory:") {
 		t.Errorf("MemoryInfo(missing) = %v, want memory-prefixed error", err)
 	}
-	if _, err := app.MemoryInfo(writeFile(t, "kernel.dmp", append([]byte("PAGEDU64"), make([]byte, 64)...))); err == nil || !strings.Contains(err.Error(), "not yet supported") {
-		t.Errorf("MemoryInfo(PAGEDU64) = %v, want not-yet-supported error", err)
+	if _, err := app.MemoryInfo(writeFile(t, "kernel.dmp", append([]byte("PAGEDU64"), make([]byte, 64)...))); err == nil || !strings.Contains(err.Error(), "truncated Windows dump header") {
+		t.Errorf("MemoryInfo(PAGEDU64) = %v, want truncated-header error", err)
+	}
+	if _, err := app.MemoryInfo(writeFile(t, "old.dmp", append([]byte("PAGEDUMP"), make([]byte, 64)...))); err == nil || !strings.Contains(err.Error(), "not yet supported") {
+		t.Errorf("MemoryInfo(PAGEDUMP) = %v, want not-yet-supported error", err)
 	}
 
 	raw := writeFile(t, "ram.raw", []byte("not a structured capture"))
@@ -137,4 +142,121 @@ func TestMemoryELFCore(t *testing.T) {
 	if loc.Offset != ehdrLen+phdrLen+0x10 || loc.Segment != 0 {
 		t.Fatalf("Locate(0x400010) = %+v", loc)
 	}
+}
+
+func TestMemoryOpenLIME(t *testing.T) {
+	app := newTestApp(t)
+	payload := make([]byte, 0x100)
+	for i := range payload {
+		payload[i] = byte(0x1000 + i)
+	}
+	p := writeFile(t, "ram.lime", buildLime(0x1000, 0x10FF))
+
+	doc, err := app.MemoryOpen(p, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Size != 0x100 {
+		t.Fatalf("doc size = %d, want 256", doc.Size)
+	}
+	wd, err := app.ReadWindow(doc.ID, 0, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(wd.Bytes, payload[:16]) {
+		t.Fatalf("window = %x, want %x", wd.Bytes, payload[:16])
+	}
+	logged := caseAudit(t, app)
+	for _, want := range []string{`"op":"memory-view"`, `"format":"lime"`, "read-only"} {
+		if !strings.Contains(logged, want) {
+			t.Errorf("audit log missing %s:\n%s", want, logged)
+		}
+	}
+
+	// A sub-range becomes its own document over the same capture.
+	sub, err := app.MemoryOpen(p, 4, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sub.Size != 8 {
+		t.Fatalf("sub size = %d, want 8", sub.Size)
+	}
+	wd, err = app.ReadWindow(sub.ID, 0, 8)
+	if err != nil || !bytes.Equal(wd.Bytes, payload[4:12]) {
+		t.Fatalf("sub window = %x, err %v", wd.Bytes, err)
+	}
+	// A size past the end is clamped.
+	clamped, err := app.MemoryOpen(p, 0, 1<<20)
+	if err != nil || clamped.Size != 0x100 {
+		t.Fatalf("clamped = %+v, err %v", clamped, err)
+	}
+}
+
+func TestMemoryOpenAVML(t *testing.T) {
+	app := newTestApp(t)
+	payload := make([]byte, 0x80)
+	for i := range payload {
+		payload[i] = byte(0x2000 + i)
+	}
+	p := writeFile(t, "ram.avml", buildAVMLCapture(0x2000, payload))
+
+	doc, err := app.MemoryOpen(p, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Size != 0x80 {
+		t.Fatalf("doc size = %d, want 128", doc.Size)
+	}
+	wd, err := app.ReadWindow(doc.ID, 0, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(wd.Bytes, payload[:16]) {
+		t.Fatalf("window = %x, want %x", wd.Bytes, payload[:16])
+	}
+	if logged := caseAudit(t, app); !strings.Contains(logged, `"format":"avml"`) {
+		t.Errorf("audit log missing avml format:\n%s", logged)
+	}
+	// The metadata view agrees the capture is compressed.
+	mc, err := app.MemoryInfo(p)
+	if err != nil || !mc.Compressed {
+		t.Fatalf("capture = %+v, err %v", mc, err)
+	}
+}
+
+func TestMemoryOpenErrors(t *testing.T) {
+	app := newTestApp(t)
+	if _, err := app.MemoryOpen(filepath.Join(t.TempDir(), "missing.lime"), 0, 0); err == nil {
+		t.Error("MemoryOpen(missing) = nil, want error")
+	}
+	p := writeFile(t, "ram.lime", buildLime(0x1000, 0x10FF))
+	if _, err := app.MemoryOpen(p, -1, 0); err == nil {
+		t.Error("MemoryOpen(-1) = nil, want error")
+	}
+	if _, err := app.MemoryOpen(p, 1<<30, 0); err == nil {
+		t.Error("MemoryOpen(past end) = nil, want error")
+	}
+}
+
+// buildAVMLCapture wraps one AVML v2 block around payload, stored as a
+// Snappy framed uncompressed chunk (no real compressor needed in tests).
+func buildAVMLCapture(start uint64, payload []byte) []byte {
+	h := make([]byte, 32)
+	copy(h, "AVML")
+	binary.LittleEndian.PutUint32(h[4:], 2)
+	binary.LittleEndian.PutUint64(h[8:], start)
+	binary.LittleEndian.PutUint64(h[16:], start+uint64(len(payload))-1)
+
+	id := []byte{0xff, 0x06, 0x00, 0x00, 's', 'N', 'a', 'P', 'p', 'Y'}
+	ln := len(payload) + 4
+	frame := []byte{0x01, byte(ln), byte(ln >> 8), byte(ln >> 16)}
+	crc := crc32.Checksum(payload, crc32.MakeTable(crc32.Castagnoli))
+	frame = binary.LittleEndian.AppendUint32(frame, ((crc>>15)|(crc<<17))+0xa282ead8)
+	frame = append(frame, payload...)
+
+	stream := append(id, frame...)
+	var trailer [8]byte
+	binary.LittleEndian.PutUint64(trailer[:], uint64(len(stream)))
+	out := append(h, stream...)
+	return append(out, trailer[:]...)
 }
