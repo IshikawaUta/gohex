@@ -371,6 +371,23 @@ export function ListDocuments(): $CancellablePromise<$models.DocInfo[] | null> {
 }
 
 /**
+ * MemoryCompareModules diffs the loaded-module sets of two dumps by
+ * base+size identity. Both accesses are recorded in the audit log.
+ */
+export function MemoryCompareModules(pathA: string, pathB: string): $CancellablePromise<memory$0.ModuleDiff> {
+    return $Call.ByID(1605405561, pathA, pathB);
+}
+
+/**
+ * MemoryDumpRange extracts length bytes of the capture's address space
+ * starting at addr into outPath (read-only source, read-only extraction).
+ * The export is recorded in the audit log with the byte count.
+ */
+export function MemoryDumpRange(path: string, addr: number, length: number, outPath: string): $CancellablePromise<number> {
+    return $Call.ByID(2621953368, path, addr, length, outPath);
+}
+
+/**
  * MemoryInfo reports the format, size and address segment map of a memory
  * capture or crash dump. The capture is opened read-only and only its parsed
  * metadata is returned; the access is recorded in the audit log.
@@ -398,6 +415,16 @@ export function MemoryLocate(path: string, addr: number): $CancellablePromise<me
  */
 export function MemoryOpen(path: string, offset: number, size: number): $CancellablePromise<$models.DocInfo> {
     return $Call.ByID(722738885, path, offset, size);
+}
+
+/**
+ * MemoryStack performs a best-effort frame-pointer walk of the given
+ * thread's stack inside a dump and returns the frames, each resolved to
+ * a module plus offset when the address falls inside one. The access is
+ * recorded in the audit log.
+ */
+export function MemoryStack(path: string, threadID: number): $CancellablePromise<memory$0.StackFrame[] | null> {
+    return $Call.ByID(2091817011, path, threadID);
 }
 
 /**

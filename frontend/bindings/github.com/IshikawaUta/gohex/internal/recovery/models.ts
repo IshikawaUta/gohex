@@ -18,6 +18,11 @@ export interface Carved {
      * past the end of the scanned range.
      */
     "truncated": boolean;
+
+    /**
+     * LowConfidence marks a fallback match (see Spec.LowConfidence).
+     */
+    "lowConfidence"?: boolean;
 }
 
 /**
@@ -32,4 +37,9 @@ export interface SpecInfo {
      * Extent describes how the size is determined: "footer" or "length".
      */
     "extent": string;
+
+    /**
+     * LowConfidence mirrors Spec.LowConfidence for the UI.
+     */
+    "lowConfidence"?: boolean;
 }

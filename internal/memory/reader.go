@@ -52,6 +52,14 @@ func (r *Reader) Size() int64 { return r.dense[len(r.dense)-1] }
 // Format returns the detected capture format.
 func (r *Reader) Format() string { return r.cap.Format }
 
+// Capture returns a copy of the parsed capture metadata (segment map,
+// details, bugcheck). The Reader keeps its own copy for reads.
+func (r *Reader) Capture() Capture { return r.cap }
+
+// Locate maps an address inside the capture onto a file offset using
+// the reader's parsed segment map.
+func (r *Reader) Locate(addr int64) (Location, error) { return r.cap.Locate(addr) }
+
 // Close releases the underlying file.
 func (r *Reader) Close() error { return r.f.Close() }
 

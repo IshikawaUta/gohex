@@ -45,6 +45,7 @@ const (
 	FormatELFCore  = "elf-core"
 	FormatMinidump = "minidump"
 	FormatWinDump  = "windump"
+	FormatHiber    = "hiber"
 	FormatRAW      = "raw"
 )
 
@@ -86,11 +87,11 @@ const (
 	elfPhdr32   = 32
 )
 
-// Minidump stream types used here.
+// Minidump stream types used here (MINIDUMP_STREAM_TYPE).
 const (
 	mdmpHeaderSize      = 32 // signature, version, streams, dir RVA, checksum, timestamp, flags
 	mdmpDirEnt          = 12 // stream type, data size, RVA
-	mdmpStreamMemList64 = 7
+	mdmpStreamMemList64 = 9  // MINIDUMP_MEMORY64_LIST (SystemInfo is 7)
 	mdmpStreamMemList   = 5
 )
 
@@ -117,6 +118,14 @@ type Capture struct {
 	HasMap     bool      `json:"hasMap"`     // address map available
 	Compressed bool      `json:"compressed"` // payloads are compressed; use OpenReader
 	Segments   []Segment `json:"segments"`
+
+	// Details is the best-effort triage summary (modules, threads,
+	// exception) for formats that carry one; nil otherwise.
+	Details *Details `json:"details,omitempty"`
+	// BugCheck is set for Windows 64-bit kernel crash dumps.
+	BugCheck *BugCheck `json:"bugCheck,omitempty"`
+	// Hiber is set for Windows hibernation files (page inventory only).
+	Hiber *HiberInfo `json:"hiber,omitempty"`
 
 	blocks []compBlock // AVML only: compressed backing store per segment
 }
@@ -194,18 +203,28 @@ func Open(path string) (Capture, error) {
 		}
 	case bytes.HasPrefix(head, []byte("PAGE")) && bytes.HasPrefix(head[4:], []byte("DUMP")):
 		return Capture{}, errors.New("memory: 32-bit Windows kernel dumps (PAGEDUMP) are not yet supported")
+	case bytes.HasPrefix(head, []byte("HIBR")) || bytes.HasPrefix(head, []byte("hibr")):
+		// Windows hibernation file: no address map, exposed as raw bytes
+		// plus the page inventory in Capture.Hiber.
+		format = FormatHiber
+		segs = []Segment{{Index: 0, Offset: 0, Length: size}}
 	default:
 		segs = []Segment{{Index: 0, Offset: 0, Length: size}}
 	}
-	return Capture{
+	c := Capture{
 		Path:       path,
 		Format:     format,
 		Size:       size,
-		HasMap:     format != FormatRAW,
+		HasMap:     format != FormatRAW && format != FormatHiber,
 		Compressed: format == FormatAVML,
 		Segments:   segs,
 		blocks:     blocks,
-	}, nil
+	}
+	// Best-effort details pass (modules, threads, registers, exception,
+	// bugcheck, hibernation inventory). Never fails the open.
+	d, bc, hiber := parseDetails(f, size, format, head)
+	c.Details, c.BugCheck, c.Hiber = d, bc, hiber
+	return c, nil
 }
 
 // Locate maps an address inside the capture onto a file offset. It fails for
