@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX v4 fragment for the GoHex MSI.
+  Build (after `wails3 build` produces bin/gohex.exe):
+
+    wix build packaging/msi/gohex.wxs -arch x64 \
+      -d BinaryPath=$PWD/bin/gohex.exe \
+      -o dist/gohex.msi
+
+  Per-machine install; no auto-start, no firewall rules, no services —
+  GoHex is a single examiner-launched binary.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="GoHex"
+    Manufacturer="GoHex Project"
+    Version="0.0.0"
+    UpgradeCode="6F3C1D2A-9E8B-4C7A-B5D4-1A2E3F4B5C6D"
+    Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer GoHex is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="GoHex">
+        <Component Id="MainExe" Guid="A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D">
+          <File Id="GohexExe" Source="$(var.BinaryPath)" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+    <Feature Id="Main" Title="GoHex" Level="1">
+      <ComponentRef Id="MainExe" />
+    </Feature>
+  </Package>
+</Wix>

@@ -87,3 +87,36 @@ Report vulnerabilities per [SECURITY.md](../SECURITY.md). Please include:
 affected version (`gohex` banner / `pkg/version`), reproduction steps, and
 whether the issue can cause data loss — data-loss bugs are treated as
 security bugs.
+
+## Supply chain
+
+Release artifacts are defended in layers:
+
+- **CI gates** (`.github/workflows/ci.yml`): `go vet`, `gofmt`, a ≥80%
+  coverage floor, frontend type-check, and a bindings-regeneration diff
+  check that fails when Go APIs and TypeScript bindings drift apart.
+- **Lint & security** (`.github/workflows/security.yml`): golangci-lint
+  (gofumpt, gosec, errcheck, …), `govulncheck`, and `gitleaks` over the
+  full history.
+- **SBOM**: every main-branch build emits CycloneDX and SPDX SBOMs via
+  syft; release jobs attach the same documents to the GitHub release.
+- **Signing**: release tags are signed with cosign (keyless, Sigstore
+  public good instance) so `cosign verify` can prove a binary came from
+  this repository's workflow. Verify with:
+
+  ```sh
+  cosign verify-blob --bundle gohex.sig.bundle gohex_linux_amd64.tar.gz
+  ```
+
+- **Checksums**: `SHA256SUMS` is published next to every release; the
+  in-app updater (`UpdateDownload`) refuses any asset whose SHA-256 does
+  not match the digest the examiner pasted — it never executes what it
+  downloads.
+- **Changelog**: `CHANGELOG.md` is generated from Conventional Commits by
+  git-cliff (`cliff.toml`); releases cut from tags must not contain
+  undocumented behavior changes.
+
+Packaging manifests live next to the code they describe:
+`packaging/flatpak/` (Flatpak), `packaging/snap/` (Snap),
+`packaging/msi/` (WiX v4), `packaging/dmg/` (macOS DMG via create-dmg in
+the release workflow).

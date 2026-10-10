@@ -1,0 +1,45 @@
+name: gohex
+base: core24
+grade: stable
+confinement: strict
+summary: Hex editor and digital forensic suite
+description: |
+  GoHex is an open-source hex editor and digital forensic suite:
+  structure templates, data interpreter, disk cloning, file carving,
+  timeline analysis, and case management — read-only by default.
+
+  Confinined: no network interface is declared, and disk access goes
+  through removable-media plugs the user must grant explicitly.
+license: Apache-2.0
+website: https://github.com/IshikawaUta/gohex
+
+parts:
+  gohex:
+    plugin: nil
+    source: .
+    build-packages:
+      - git
+      - nodejs-npm
+    override-build: |
+      set -e
+      export HOME=$CRAFT_PART_BUILD/.home
+      export GOPATH=$CRAFT_PART_BUILD/.gopath
+      export GOCACHE=$CRAFT_PART_BUILD/.gocache
+      cd $CRAFT_PART_SRC/frontend && npm ci && npm run build
+      cd $CRAFT_PART_SRC
+      # Wails GTK build needs the stage-packages headers at runtime link time
+      go build -trimpath -ldflags "-s -w" -o $CRAFT_PART_INSTALL/bin/gohex ./cmd/gohex
+    stage-packages:
+      - libgtk-3-0
+      - libwebkit2gtk-4.1-0
+
+apps:
+  gohex:
+    command: bin/gohex
+    extensions: [gnome]
+    plugs:
+      - home
+      - removable-media
+      - opengl
+      - wayland
+      - x11

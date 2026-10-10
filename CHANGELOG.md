@@ -7,6 +7,59 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ### Added
 
+- **Fuzzing & benchmarks**: 12 fuzz targets across parser packages
+  (encoding, filesystems, hash, recovery, forensics, raid, restapi, …) and
+  I/O benchmarks for clone/hash/read paths.
+- **Carving signatures expanded 9 → 35 types** (images, office, OLE, audio,
+  video, archives, executables) with low-confidence fallbacks and
+  truncated-extent flags.
+- **Memory dump analyzer v2**: minidump modules/threads/exception stream +
+  context registers, ELF core notes (NT_FILE, NT_PRSTATUS), Windows
+  DUMP_HEADER64 BugCheck codes, hibernation/pagefile/vmem detection.
+- **Reports in JSON + HTML + PDF + DOCX** (dependency-free PDF 1.4 writer
+  and OOXML ZIP writer) with SHA-256 case checksum embedded in every format.
+- **Bates numbering** for evidence and timeline exhibits in JSON/PDF/DOCX
+  reports (prefix/start/zero-pad width, applied to report copies only —
+  the case file stays unnumbered); refused for HTML.
+- **Timeline forensik**: kind/date/search filter UI, CSV/JSON export.
+- **Utilities suite**: entropy heatmap, byte frequency, hex calculator,
+  regex tester, strings, split/join, secure delete (single-pass zero +
+  multi-pass DoD 5220.22-M), password/UUID/ULID generator, timestamp
+  converter, RNG capture, selection export to PNG.
+- **Disk clone v2**: gzip/zstd compression, split volumes, resume via
+  checkpoint file, bad-sector log, progress events, `gohex-cli clone`.
+- **RAID 0/1/5/6 interpreter** (read-only): GF(2^8) Reed-Solomon for RAID6,
+  degraded reads with missing members, GUI dialog, cross-stripe verified.
+- **NTFS alternate data streams**: list resident/named streams per file
+  (record-level, works without ntfs-3g), open as hex, export hashed copy;
+  compressed/encrypted streams are listed but refused.
+- **FUSE read-only mount** (linux, go-fuse v2): kernel `ro` option +
+  node modes 0444/0555 + EROFS on open-for-write; mountpoint must be empty;
+  unmount on shutdown; graceful error on non-Linux builds.
+- **Bookmarks & offset history**: per-file bookmarks persisted to localStorage
+  (Ctrl+D / Ctrl+Shift+B), back/forward offset navigation (Alt+←/→),
+  drag-and-drop file open.
+- **Compare dialog**: pairwise A×B/C/D four-way compare with sync reveal
+  (⇔), per-diff jump buttons.
+- **Macro record/replay**: goto/find/copy/bookmark/selectAll/wait steps,
+  stops at first failing step, export/import JSON (`gohex-macro-v1`).
+- **Help dialog** (F1): filterable shortcut table, getting-started tour,
+  synthetic sample-evidence generator (64 KiB MZ/PE + PNG + JPEG + ZIP +
+  marker + entropy regions + UTF-16LE strings).
+- **gohex-server** REST API: loopback-only bind (refuses non-loopback),
+  bearer-token auth (constant-time compare, token required), opt-in;
+  endpoints for version, documents (open/data/find) and fs (probe,
+  partitions, list, export). Ships as `cmd/gohex-server`.
+- **Carved-file gallery preview**: selecting a carved JPEG/PNG/GIF/BMP/WebP
+  shows a data-URL thumbnail (1 MiB cap, read-only, audited).
+- **Verified update download**: paste asset URL + published SHA-256; the
+  download is streamed through the hash with a 256 MiB cap, kept only on
+  match, never executed; gated behind `GOHEX_UPDATE_CHECK=1`; audited.
+- **Supply-chain CI**: golangci-lint (gofumpt/gosec/errcheck/…) config,
+  security workflow (golangci-lint, govulncheck, gitleaks, SBOM via syft),
+  cosign keyless signing in the release workflow, git-cliff changelog
+  config, Flatpak/Snap/MSI/DMG packaging manifests under `packaging/`.
+
 - **Hex editor core** (`internal/hex`): span-overlay document model that opens
   files larger than 4 GB without loading them into memory; overwrite, insert,
   delete, fill; unlimited undo/redo (memory bounded by edited bytes).
@@ -156,6 +209,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ### Fixed
 
+- **Raid tests**: cross-stripe logical order expectation corrected
+  (`col0‖col1` per stripe); Raid5/Raid6 pad data to whole stripes — a
+  `Size: 1` placeholder had collapsed the array size to 0, so the tests
+  were passing for the wrong reason.
+- **Minidump**: Memory64List type corrected 7 → 9; DumpHeader64 signature
+  check tightened.
 - **Preferences dialog**: pressing ⚙ (or Ctrl+,) opened nothing —
   `structuredClone()` on the reactive `$state` proxy of the loaded
   preferences threw `DataCloneError` on WebKitGTK, which aborted the

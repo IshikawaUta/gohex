@@ -1,0 +1,41 @@
+# Linter configuration for GoHex.
+# Run locally: golangci-lint run ./...
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: standard
+  enable:
+    - gofumpt
+    - gosec
+    - bodyclose
+    - noctx
+    - misspell
+    - unconvert
+    - unparam
+    - errorlint
+  settings:
+    gofumpt:
+      # Keep the forensic code readable: no long one-liners.
+      extra-rules: false
+    gosec:
+      # G404: math/rand is fine for sample data generation; the crypto
+      # paths (password generator, token minting) use crypto/rand and
+      # are pinned by tests. G304: file paths come from the examiner
+      # via native dialogs — that is the product.
+      excludes:
+        - G404
+        - G304
+
+linters-settings:
+  errcheck:
+    check-blank: false
+
+issues:
+  exclude-rules:
+    # Test helpers routinely ignore audit-log write errors.
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec

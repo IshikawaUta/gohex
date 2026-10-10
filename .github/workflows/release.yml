@@ -165,6 +165,9 @@ jobs:
     name: Checksums + GitHub release
     needs: [cli, gui-linux, gui-windows, gui-macos]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release
+      id-token: write # keyless cosign signing
     steps:
       - uses: actions/checkout@v4
 
@@ -208,6 +211,28 @@ jobs:
           else
             gpg --batch --yes -u "$fpr" --detach-sign --armor dist/SHA256SUMS.txt
           fi
+
+      # Keyless cosign: the workflow's OIDC identity signs a bundle for
+      # every artifact + the checksum manifest. Verification needs no
+      # GoHex-specific key material — Sigstore's public transparency log
+      # binds the certificate to this repository's workflow.
+      - name: Cosign keyless signatures (Sigstore)
+        if: ${{ !cancelled() }}
+        id: cosign
+        continue-on-error: true # availability of the public good instance varies
+        run: |
+          curl -sSfL https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64 -o cosign
+          chmod +x cosign
+          sudo mv cosign /usr/local/bin/cosign
+          cd dist
+          for f in *; do
+            case "$f" in
+              *.sig|*.sig.bundle|SHA256SUMS.txt.sig) continue ;;
+            esac
+            cosign sign-blob --yes --bundle "${f}.sig.bundle" "$f"
+          done
+          cosign sign-blob --yes --bundle SHA256SUMS.txt.sig.bundle SHA256SUMS.txt
+          ls -la *.sig.bundle
 
       - name: Create GitHub release
         env:

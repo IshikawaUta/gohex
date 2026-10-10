@@ -1,0 +1,46 @@
+# git-cliff configuration — generates CHANGELOG.md from Conventional
+# Commits. Run locally:  git cliff --tag v1.2.3 -o CHANGE.md
+# CI/release jobs run the same command to cut release notes.
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project are documented here.
+Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [SemVer](https://semver.org/).
+"""
+body = """
+{% if version %}\
+    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+    ## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | striptags | trim | upper_first }}
+    {% for commit in commits %}
+        - {% if commit.scope %}**{{ commit.scope }}**: {% endif %}\
+          {{ commit.message | upper_first }}\
+          {% if commit.github %} ([#{{ commit.github.number }}](https://github.com/IshikawaUta/gohex/pull/{{ commit.github.number }})){% endif %}
+    {% endfor %}
+{% endfor %}
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+commit_parsers = [
+    { message = "^feat", group = "Added" },
+    { message = "^fix", group = "Fixed" },
+    { message = "^perf", group = "Changed" },
+    { message = "^refactor", group = "Changed" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^test", group = "Testing" },
+    { message = "^chore\\(release\\)", skip = true },
+    { message = "^chore", group = "Changed" },
+    { message = "^ci", group = "Changed" },
+    { body = ".*security.*", group = "Security" },
+    { message = ".*", group = "Changed" },
+]
+sort_commits = { by = "oldest" }

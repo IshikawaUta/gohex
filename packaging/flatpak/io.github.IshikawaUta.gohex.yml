@@ -1,0 +1,31 @@
+# Flatpak manifest for GoHex.
+# Build: flatpak-builder --user --install build-dir packaging/flatpak/io.github.IshikawaUta.gohex.yml
+# The app is read-only by design; filesystem access is granted per-open
+# through the portal, never wholesale.
+app-id: io.github.IshikawaUta.gohex
+runtime: org.gnome.Platform
+runtime-version: "47"
+sdk: org.gnome.Sdk
+command: gohex
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  # No --share=network: GoHex makes no outbound connections by default.
+  # Filesystem access goes through the XDG desktop portal (open/save).
+modules:
+  - name: gohex
+    buildsystem: simple
+    build-commands:
+      - |
+        export GOPATH=$PWD/.gopath
+        export GOCACHE=$PWD/.gocache
+        export PATH=$PATH:$GOPATH/bin
+        # frontend assets are embedded; build them first
+        cd frontend && npm ci && npm run build && cd ..
+        go build -trimpath -ldflags "-s -w" -o gohex ./cmd/gohex
+      - install -Dm755 gohex /app/bin/gohex
+    sources:
+      - type: dir
+        path: ../..
