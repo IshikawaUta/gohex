@@ -18,6 +18,7 @@ export type {
     FindResponse,
     FindingInput,
     ImageInfo,
+    MountInfo,
     PartitionInfo,
     SaveResult,
     ScriptResult,

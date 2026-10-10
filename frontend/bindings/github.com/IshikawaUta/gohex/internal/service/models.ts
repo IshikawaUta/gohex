@@ -185,6 +185,16 @@ export interface ImageInfo {
 }
 
 /**
+ * MountInfo describes one active read-only FUSE mount.
+ */
+export interface MountInfo {
+    "mountpoint": string;
+    "fsType": string;
+    "label": string;
+    "source": string;
+}
+
+/**
  * PartitionInfo is one partition plus what lives inside it.
  */
 export interface PartitionInfo {

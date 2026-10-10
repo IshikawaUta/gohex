@@ -9,6 +9,7 @@
     ImageInfo,
     SaveResult,
     CloneJobStatus,
+    MountInfo,
   } from "../../../bindings/github.com/IshikawaUta/gohex/internal/service/models";
   import type { Entry, Stream } from "../../../bindings/github.com/IshikawaUta/gohex/internal/fs/models";
 
@@ -27,6 +28,11 @@
   // NTFS alternate data streams.
   let adsStreams = $state<Stream[]>([]);
   let adsOpen = $state(false);
+
+  // Read-only FUSE mount (Linux only).
+  let mountOpen = $state(false);
+  let mountPoint = $state("");
+  let mounts = $state<MountInfo[]>([]);
 
   // Clone v2 state.
   let cloneOpen = $state(false);
@@ -334,6 +340,39 @@
     }
   }
 
+  async function refreshMounts(): Promise<void> {
+    mounts = (await svc.FsMountList()) ?? [];
+  }
+
+  async function mountFs(): Promise<void> {
+    if (!path || !mountPoint) return;
+    busy = true;
+    error = "";
+    try {
+      const info = await svc.FsMount(path, fsOffset, fsSize, mountPoint);
+      flash(`Mounted ${info.fsType} read-only at ${info.mountpoint}`);
+      await refreshMounts();
+    } catch (e) {
+      error = errMsg(e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function unmountFs(mp: string): Promise<void> {
+    busy = true;
+    error = "";
+    try {
+      await svc.FsUnmount(mp);
+      flash(`Unmounted ${mp}`);
+      await refreshMounts();
+    } catch (e) {
+      error = errMsg(e);
+    } finally {
+      busy = false;
+    }
+  }
+
   function fmtSize(n: number): string {
     if (n >= 1 << 30) return `${(n / (1 << 30)).toFixed(2)} GiB`;
     if (n >= 1 << 20) return `${(n / (1 << 20)).toFixed(2)} MiB`;
@@ -517,6 +556,47 @@
               <button onclick={() => void loadStreams()} disabled={busy}>
                 Alternate streams…
               </button>
+            {/if}
+            <button onclick={() => { mountOpen = !mountOpen; if (mountOpen) void refreshMounts(); }} disabled={busy}>
+              {mountOpen ? "Hide mount panel" : "Mount read-only…"}
+            </button>
+            {#if mountOpen}
+              <div class="ads">
+                <div class="adshead">
+                  <span>FUSE mount (read-only, Linux)</span>
+                </div>
+                <p class="dim small">
+                  The filesystem is presented via FUSE so ordinary tools (ls, cp, md5sum)
+                  can browse the evidence. Writes are rejected by the kernel. The
+                  mountpoint must be an existing empty directory.
+                </p>
+                <div class="adsrow">
+                  <input
+                    class="mountinput"
+                    placeholder="/mnt/evidence"
+                    bind:value={mountPoint}
+                    disabled={busy}
+                  />
+                  <button class="crumb" disabled={busy || !mountPoint} onclick={() => void mountFs()}>
+                    Mount
+                  </button>
+                </div>
+                {#if mounts.length}
+                  <ul class="entries">
+                    {#each mounts as m (m.mountpoint)}
+                      <li>
+                        <div class="adsrow">
+                          <span class="name" title={m.source}>{m.mountpoint}</span>
+                          <span class="tag">{m.fsType}</span>
+                          <button class="crumb" disabled={busy} onclick={() => void unmountFs(m.mountpoint)}>
+                            Unmount
+                          </button>
+                        </div>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              </div>
             {/if}
             {#if adsOpen}
               <div class="ads">
@@ -866,6 +946,22 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-family: var(--font-mono);
+  }
+
+  .mountinput {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-input, transparent);
+    color: var(--text);
+  }
+
+  .small {
+    font-size: 11px;
+    margin: 2px 0 6px;
   }
 
   .error {

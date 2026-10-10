@@ -374,6 +374,26 @@ export function FsList(path: string, offset: number, size: number, dir: string):
 }
 
 /**
+ * FsMount presents the filesystem at offset inside the image as a
+ * read-only FUSE mount at mountpoint (Linux only). The mountpoint must
+ * be an existing empty directory: mounting over a non-empty directory
+ * would hide live files behind evidence, which is exactly the kind of
+ * confusion this tool exists to prevent. Nothing under the mount is
+ * writable — the kernel gets the "ro" option, every node advertises
+ * 0444/0555, and the opener rejects write flags.
+ */
+export function FsMount(path: string, offset: number, size: number, mountpoint: string): $CancellablePromise<$models.MountInfo> {
+    return $Call.ByID(2628617110, path, offset, size, mountpoint);
+}
+
+/**
+ * FsMountList returns the active FUSE mounts.
+ */
+export function FsMountList(): $CancellablePromise<$models.MountInfo[] | null> {
+    return $Call.ByID(1121154114);
+}
+
+/**
  * FsOpenStream opens one named alternate data stream of an NTFS file
  * as a hex document (read-only, audited). Compressed/encrypted
  * streams are refused — the reader does not implement those codecs
@@ -417,6 +437,15 @@ export function FsStreamExport(path: string, offset: number, size: number, fsPat
  */
 export function FsStreams(path: string, offset: number, size: number, fsPath: string): $CancellablePromise<fs$0.Stream[] | null> {
     return $Call.ByID(3409700926, path, offset, size, fsPath);
+}
+
+/**
+ * FsUnmount detaches a FUSE mount. The kernel may need a moment after
+ * the last open handle closes, so a single retry covers busy mounts
+ * from tools like md5sum that are mid-read.
+ */
+export function FsUnmount(mountpoint: string): $CancellablePromise<void> {
+    return $Call.ByID(3062069623, mountpoint);
 }
 
 /**
@@ -719,6 +748,14 @@ export function ShortcutDefaults(): $CancellablePromise<{ [_ in string]?: string
  */
 export function Shred(path: string, passes: number): $CancellablePromise<void> {
     return $Call.ByID(3826760980, path, passes);
+}
+
+/**
+ * ShutdownUnmounts detaches every FUSE mount during app shutdown so
+ * the kernel is not left with a dead daemon mount.
+ */
+export function ShutdownUnmounts(): $CancellablePromise<void> {
+    return $Call.ByID(1106324221);
 }
 
 /**

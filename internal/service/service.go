@@ -23,6 +23,7 @@ import (
 	encoding "github.com/IshikawaUta/gohex/internal/encoding" // package bincoding
 	"github.com/IshikawaUta/gohex/internal/forensics"
 	"github.com/IshikawaUta/gohex/internal/fs"
+	"github.com/IshikawaUta/gohex/internal/fusefs"
 	"github.com/IshikawaUta/gohex/internal/hash"
 	"github.com/IshikawaUta/gohex/internal/hex"
 	"github.com/IshikawaUta/gohex/internal/image"
@@ -159,6 +160,15 @@ type App struct {
 	// status can still be queried).
 	cloneSeq int64
 	clones   map[int64]*cloneJob
+
+	// Active FUSE mounts (Linux only). Keyed by mountpoint; value keeps
+	// the evidence source path for audit/list purposes.
+	mounts map[string]mountEntry
+}
+
+type mountEntry struct {
+	h   fusefs.Handle
+	src string
 }
 
 // New builds the application service: loads preferences (missing file → safe
@@ -195,11 +205,15 @@ func New(cfgPath string, emitter Emitter) (*App, error) {
 		docs:    make(map[int64]*doc),
 		fss:     make(map[string]*fsSession),
 		emit:    emitter,
+		mounts:  make(map[string]mountEntry),
 	}, nil
 }
 
 // Close releases service resources: open documents and the audit log.
 func (a *App) Close() error {
+	// Detach FUSE mounts before tearing down: the kernel must not be
+	// left pointing at a dead daemon.
+	a.ShutdownUnmounts()
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	for _, d := range a.docs {

@@ -38,6 +38,8 @@ const (
 	ActionCase       Action = "case"        // case lifecycle
 	ActionSearch     Action = "search"      // search over evidence (access record)
 	ActionScript     Action = "script"      // ran an automation script over evidence
+	ActionMount      Action = "mount"       // attached a read-only FUSE view of evidence
+	ActionUnmount    Action = "unmount"     // detached a FUSE view
 )
 
 // Result of the operation.
