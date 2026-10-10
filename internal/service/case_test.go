@@ -1,10 +1,13 @@
 package service
 
 import (
+	"archive/zip"
+	"bytes"
 	"crypto/sha256"
 	stdhex "encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -383,7 +386,7 @@ func TestCaseReportHTML(t *testing.T) {
 		t.Error("the refused export damaged the existing report")
 	}
 
-	if _, err := app.CaseReport("pdf", filepath.Join(t.TempDir(), "r.pdf")); err == nil {
+	if _, err := app.CaseReport("bogus", filepath.Join(t.TempDir(), "r.pdf")); err == nil {
 		t.Error("accepted an unknown format")
 	}
 	if _, err := app.CaseReport("html", "  "); err == nil {
@@ -440,5 +443,93 @@ func TestCaseEvidenceDirRejected(t *testing.T) {
 	mustOk(t, err)
 	if _, err := app.CaseEvidenceAdd(t.TempDir(), forensics.KindFile, ""); err == nil {
 		t.Error("added a directory as evidence")
+	}
+}
+
+func TestCaseReportPDFAndDOCX(t *testing.T) {
+	app := newTestApp(t)
+	if _, err := app.CaseNew("PDF case", "B", "for rendering"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.CaseEventAdd(forensics.Event{
+		Kind: forensics.EventManual, Summary: "note for pdf",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	pdfDst := filepath.Join(t.TempDir(), "report.pdf")
+	res, err := app.CaseReport("PDF", pdfDst)
+	if err != nil {
+		t.Fatalf("CaseReport(pdf): %v", err)
+	}
+	if res.BytesSaved == 0 {
+		t.Fatal("empty PDF")
+	}
+	body, err := os.ReadFile(pdfDst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(body, []byte("%PDF-1.4")) {
+		t.Fatalf("PDF header = %q", body[:10])
+	}
+	if !bytes.Contains(body, []byte("GoHex Forensic Case Report")) {
+		t.Error("PDF missing title text")
+	}
+	if !bytes.HasSuffix(bytes.TrimSpace(body), []byte("%%EOF")) {
+		t.Error("PDF missing EOF marker")
+	}
+
+	docxDst := filepath.Join(t.TempDir(), "report.docx")
+	res2, err := app.CaseReport("docx", docxDst)
+	if err != nil {
+		t.Fatalf("CaseReport(docx): %v", err)
+	}
+	if res2.BytesSaved == 0 {
+		t.Fatal("empty DOCX")
+	}
+	dbody, err := os.ReadFile(docxDst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A .docx is a ZIP; check the PK header and required parts.
+	if !bytes.HasPrefix(dbody, []byte("PK\x03\x04")) {
+		t.Fatalf("DOCX header = %q", dbody[:4])
+	}
+	zr, err := zip.NewReader(bytes.NewReader(dbody), int64(len(dbody)))
+	if err != nil {
+		t.Fatalf("DOCX is not a valid zip: %v", err)
+	}
+	wantParts := map[string]bool{
+		"[Content_Types].xml":          false,
+		"_rels/.rels":                  false,
+		"word/document.xml":            false,
+		"word/_rels/document.xml.rels": false,
+	}
+	for _, f := range zr.File {
+		if _, ok := wantParts[f.Name]; ok {
+			wantParts[f.Name] = true
+		}
+	}
+	for name, found := range wantParts {
+		if !found {
+			t.Errorf("DOCX missing part %s", name)
+		}
+	}
+	// document.xml must carry the case name.
+	for _, f := range zr.File {
+		if f.Name == "word/document.xml" {
+			rc, err := f.Open()
+			if err != nil {
+				t.Fatal(err)
+			}
+			content, err := io.ReadAll(rc)
+			rc.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(content, []byte("PDF case")) {
+				t.Error("document.xml missing case name")
+			}
+		}
 	}
 }

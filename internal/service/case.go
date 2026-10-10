@@ -19,7 +19,12 @@ import (
 const (
 	caseFormatHTML = "html"
 	caseFormatJSON = "json"
+	caseFormatPDF  = "pdf"
+	caseFormatDOCX = "docx"
 )
+
+// CaseReportFormats lists the renderings CaseReport can emit.
+var CaseReportFormats = []string{caseFormatHTML, caseFormatJSON, caseFormatPDF, caseFormatDOCX}
 
 // errNoCase is returned by every case operation when nothing is open. It is
 // a programming error on the UI side rather than a data problem, so it never
@@ -345,7 +350,9 @@ func (a *App) CaseEventAdd(e forensics.Event) (CaseState, error) {
 // to this run, and the render is audited as an export.
 func (a *App) CaseReport(format, dstPath string) (SaveResult, error) {
 	format = strings.ToLower(strings.TrimSpace(format))
-	if format != caseFormatHTML && format != caseFormatJSON {
+	switch format {
+	case caseFormatHTML, caseFormatJSON, caseFormatPDF, caseFormatDOCX:
+	default:
 		return SaveResult{}, fmt.Errorf("service: case report: unknown format %q", format)
 	}
 	if strings.TrimSpace(dstPath) == "" {
@@ -364,6 +371,10 @@ func (a *App) CaseReport(format, dstPath string) (SaveResult, error) {
 	switch format {
 	case caseFormatJSON:
 		err = forensics.WriteJSON(&buf, c, generated)
+	case caseFormatPDF:
+		err = forensics.WritePDF(&buf, c, generated)
+	case caseFormatDOCX:
+		err = forensics.WriteDOCX(&buf, c, generated)
 	default:
 		err = forensics.WriteHTML(&buf, c, generated)
 	}

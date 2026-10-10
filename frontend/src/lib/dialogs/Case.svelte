@@ -412,6 +412,8 @@
         <select bind:value={reportFormat} title="Report format">
           <option value="html">HTML</option>
           <option value="json">JSON</option>
+          <option value="pdf">PDF</option>
+          <option value="docx">DOCX</option>
         </select>
         <button onclick={() => void exportReport()} disabled={busy}>Export report…</button>
       </div>
