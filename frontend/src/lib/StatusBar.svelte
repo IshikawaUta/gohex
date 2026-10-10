@@ -4,6 +4,7 @@
   import * as A from "./actions";
   import * as BM from "./bookmarks";
   import * as NH from "./navhist";
+  import * as NM from "./macros";
 
   let doc = $derived(store.active);
   let editing = $state(false);
@@ -21,6 +22,14 @@
   let starred = $derived.by(() => {
     void store.navGen;
     return !!doc && doc.path !== "" && BM.hasBookmark(doc.path, store.cursor);
+  });
+  let recording = $derived.by(() => {
+    void store.navGen;
+    return NM.isRecording();
+  });
+  let recCount = $derived.by(() => {
+    void store.navGen;
+    return NM.recordedOps().length;
   });
 
   function startEdit(): void {
@@ -71,6 +80,7 @@
       BM.removeBookmark(doc.path, store.cursor);
       flash(`Removed bookmark at ${fmtOffsetHex(store.cursor)}`);
     } else if (BM.addBookmark(doc.path, store.cursor)) {
+      NM.record({ kind: "bookmark" });
       flash(`Bookmarked ${fmtOffsetHex(store.cursor)}`);
     } else {
       flash("Bookmark already exists here");
@@ -170,6 +180,8 @@
       {store.progress.op}… <b>{store.progress.done}%</b>
       <span class="bar"><span style="width:{store.progress.done}%"></span></span>
     </div>
+  {:else if recording}
+    <div class="group msg rec" role="status">● REC ({recCount} ops)</div>
   {:else if store.statusMsg}
     <div class="group msg" role="status">{store.statusMsg}</div>
   {/if}
@@ -279,6 +291,10 @@
   .msg {
     color: var(--text);
     max-width: 46vw;
+  }
+
+  .msg.rec {
+    color: var(--danger, #e5534b);
   }
 
   .progress .bar {

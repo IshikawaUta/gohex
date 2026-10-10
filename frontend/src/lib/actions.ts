@@ -1,7 +1,10 @@
 import { store, flash } from "./state.svelte";
-import { svc, models, Dialogs, errMsg } from "./api";
+import { svc, models, Dialogs, Clipboard, errMsg } from "./api";
 import { ethicsAccepted } from "./ethics";
 import * as NH from "./navhist";
+import * as NM from "./macros";
+import * as BM from "./bookmarks";
+import { fmtOffsetHex } from "./format";
 import type { Preferences } from "../../bindings/github.com/IshikawaUta/gohex/internal/config/models";
 
 export async function refreshDocs(): Promise<void> {
@@ -182,11 +185,97 @@ export async function gotoOffset(expr: string): Promise<void> {
     store.cursor = off;
     store.selStart = off;
     store.selEnd = off;
+    NM.record({ kind: "goto", expr: expr.trim() });
     NH.push(doc.id, off);
     store.navGen++;
     requestAnimationFrame(() => store.revealFn?.(off));
   } catch (e) {
     flash(errMsg(e));
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * replayMacro executes a macro's ops in order against the ACTIVE
+  * document. Failures stop the run with a message naming the step —
+ * a macro that no longer matches its evidence must not silently
+ * continue and misreport where it landed.
+ */
+export async function replayMacro(m: NM.Macro): Promise<void> {
+  if (!store.active) {
+    flash("Open a document before replaying a macro");
+    return;
+  }
+  if (NM.isRecording()) {
+    flash("Stop recording before replaying");
+    return;
+  }
+  flash(`Replaying macro "${m.name}" (${m.ops.length} ops)…`);
+  for (let i = 0; i < m.ops.length; i++) {
+    const op = m.ops[i];
+    const step = `${i + 1}/${m.ops.length}`;
+    try {
+      switch (op.kind) {
+        case "goto":
+          await gotoOffset(op.expr);
+          break;
+        case "find":
+          await replayFind(op.expr, op.forward ? "next" : "prev", op.mode);
+          break;
+        case "copy":
+          await store.copyFn?.(op.what);
+          flash(`Step ${step}: copied ${op.what}`);
+          break;
+        case "bookmark": {
+          const doc = store.active;
+          if (doc?.path) {
+            BM.addBookmark(doc.path, store.cursor);
+            store.navGen++;
+            flash(`Step ${step}: bookmarked ${fmtOffsetHex(store.cursor)}`);
+          }
+          break;
+        }
+        case "selectAll":
+          await selectAll();
+          break;
+        case "wait":
+          await sleep(Math.min(10_000, Math.max(0, op.ms)));
+          break;
+      }
+    } catch (e) {
+      flash(`Macro "${m.name}" stopped at step ${step}: ${errMsg(e)}`);
+      return;
+    }
+  }
+  flash(`Macro "${m.name}" finished (${m.ops.length} ops)`);
+}
+
+async function replayFind(
+  pattern: string,
+  direction: "next" | "prev",
+  mode: "text" | "hex" | "regex",
+): Promise<void> {
+  const doc = store.active;
+  if (!doc) return;
+  const res = await svc.Find({
+    id: doc.id,
+    mode,
+    pattern,
+    encoding: doc.encoding,
+    caseFold: true,
+    direction,
+    from: store.cursor,
+    wrap: true,
+    max: 0,
+  });
+  const m = res.count > 0 ? (res.matches ?? [])[0] : undefined;
+  if (m) {
+    store.revealFn?.(m.start, m.length);
+  } else {
+    throw new Error(`pattern ${JSON.stringify(pattern)} not found`);
   }
 }
 
@@ -196,6 +285,7 @@ export async function selectAll(): Promise<void> {
   store.selStart = 0;
   store.selEnd = doc.size;
   store.cursor = 0;
+  NM.record({ kind: "selectAll" });
   await svc.SetSelection(doc.id, 0, doc.size).catch(() => {});
   store.revealFn?.(0);
 }

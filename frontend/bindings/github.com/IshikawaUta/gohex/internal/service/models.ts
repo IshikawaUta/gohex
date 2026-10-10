@@ -235,6 +235,15 @@ export interface ScriptResult {
 }
 
 /**
+ * ShortcutHelp is one row of the help dialog's shortcut table.
+ */
+export interface ShortcutHelp {
+    "action": string;
+    "default": string;
+    "bound": string;
+}
+
+/**
  * StartupInfo carries GUI startup hints: files to open from the command line
  * and whether the first-run disclaimer was pre-accepted (automation/tests).
  */

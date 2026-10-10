@@ -22,6 +22,7 @@ export type {
     PartitionInfo,
     SaveResult,
     ScriptResult,
+    ShortcutHelp,
     StartupInfo,
     TemplateField,
     TemplateInfo,

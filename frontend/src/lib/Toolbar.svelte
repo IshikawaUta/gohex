@@ -54,6 +54,16 @@
       title: "Assemble RAID 0/1/5/6 members into a read-only logical volume (degraded reads supported)",
       run: () => (store.showRaid = true),
     },
+    {
+      label: "Macro",
+      title: "Record and replay navigation, find, copy, and bookmark macros",
+      run: () => (store.showMacro = true),
+    },
+    {
+      label: "Help",
+      title: "Getting started, keyboard shortcuts, and a synthetic sample file (F1)",
+      run: () => (store.showHelp = true),
+    },
   ];
 
   $effect(() => {

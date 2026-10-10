@@ -27,6 +27,9 @@
   import Utilities from "./lib/dialogs/Utilities.svelte";
   import Raid from "./lib/dialogs/Raid.svelte";
   import Bookmarks from "./lib/dialogs/Bookmarks.svelte";
+  import Macro from "./lib/dialogs/Macro.svelte";
+  import Help from "./lib/dialogs/Help.svelte";
+  import * as NM from "./lib/macros";
 
   let doc = $derived(store.active);
   let ready = $state(false);
@@ -140,7 +143,9 @@
         store.showCompare ||
         store.showUtilities ||
         store.showRaid ||
-        store.showBookmarks
+        store.showBookmarks ||
+        store.showMacro ||
+        store.showHelp
       ) {
         store.showPrefs = false;
         store.showAbout = false;
@@ -156,6 +161,8 @@
         store.showUtilities = false;
         store.showRaid = false;
         store.showBookmarks = false;
+        store.showMacro = false;
+        store.showHelp = false;
         return;
       }
       if (store.showEthics) {
@@ -205,11 +212,13 @@
       case "edit.copy":
         if (inInput || !doc) return;
         e.preventDefault();
+        NM.record({ kind: "copy", what: "hex" });
         void store.copyFn?.("hex");
         break;
       case "edit.copyText":
         if (inInput || !doc) return;
         e.preventDefault();
+        NM.record({ kind: "copy", what: "text" });
         void store.copyFn?.("text");
         break;
       case "search.find":
@@ -254,6 +263,10 @@
         e.preventDefault();
         store.showPrefs = true;
         break;
+      case "help.shortcuts":
+        e.preventDefault();
+        store.showHelp = true;
+        break;
       default:
         // Reserved actions (search.replace, search.next/prev, view.theme,
         // help.*) have no UI surface yet; the binding is kept for them.
@@ -290,6 +303,7 @@
             {store.t("menu.file.open")} <kbd>Ctrl+O</kbd>
           </button>
           <button class="big" onclick={() => A.newDocument()}>New document</button>
+          <button class="big" onclick={() => (store.showHelp = true)}>Help &amp; sample</button>
         </div>
         {#if store.prefs?.recentFiles?.length}
           <div class="recent">
@@ -360,6 +374,12 @@
   {/if}
   {#if store.showBookmarks}
     <Bookmarks />
+  {/if}
+  {#if store.showMacro}
+    <Macro />
+  {/if}
+  {#if store.showHelp}
+    <Help />
   {/if}
 </div>
 

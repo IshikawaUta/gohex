@@ -286,6 +286,18 @@ export function ConvertTextToHex(text: string, encName: string): $CancellablePro
 }
 
 /**
+ * CreateSampleFile writes a small synthetic evidence file to dstPath
+ * and returns its SHA-256. The sample is deliberately rich for demos
+ * and training: an MZ-like header, embedded PNG/JPEG/ZIP signatures,
+ * a known ASCII marker for find练习, mixed-entropy regions, and a
+ * UTF-16LE string. It is NOT derived from any real system. The
+ * destination must not exist.
+ */
+export function CreateSampleFile(dstPath: string): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(3258454374, dstPath);
+}
+
+/**
  * DeleteRange removes length bytes at offset.
  */
 export function DeleteRange(id: number, offset: number, length: number): $CancellablePromise<void> {
@@ -739,6 +751,15 @@ export function SetStartupHints(skipDisclaimer: boolean, files: string[] | null)
  */
 export function ShortcutDefaults(): $CancellablePromise<{ [_ in string]?: string } | null> {
     return $Call.ByID(71271954);
+}
+
+/**
+ * ShortcutHelp returns the full shortcut table: every known action
+ * with its stock chord and the user's current binding ("" when the
+ * user unbound it).
+ */
+export function ShortcutHelp(): $CancellablePromise<$models.ShortcutHelp[] | null> {
+    return $Call.ByID(1422556555);
 }
 
 /**

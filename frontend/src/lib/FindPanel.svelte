@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { store, flash } from "./state.svelte";
   import { svc, models, Dialogs, errMsg } from "./api";
+  import * as NM from "./macros";
   import type { Match } from "../../bindings/github.com/IshikawaUta/gohex/internal/hex/models";
 
   let mode = $state<"text" | "hex" | "regex">("text");
@@ -40,6 +41,7 @@
       const res = await svc.Find(req(direction, 0));
       const m = res.count > 0 ? (res.matches ?? [])[0] : undefined;
       if (m) {
+        NM.record({ kind: "find", expr: pattern, forward: direction === "next", mode });
         store.revealFn?.(m.start, m.length);
         flash(`0x${m.start.toString(16).toUpperCase()} (+${m.length})`);
       } else {
