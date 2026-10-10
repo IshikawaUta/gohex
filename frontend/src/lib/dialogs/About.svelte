@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { store } from "../state.svelte";
-  import { svc, errMsg } from "../api";
+  import { store, flash } from "../state.svelte";
+  import { svc, Dialogs, errMsg } from "../api";
   import type {
     Result,
   } from "../../../bindings/github.com/IshikawaUta/gohex/internal/update/models";
@@ -8,6 +8,9 @@
   let ver = $state("");
   let updateRes = $state<Result | null>(null);
   let checking = $state(false);
+  let assetURL = $state("");
+  let assetSHA = $state("");
+  let downloading = $state(false);
   svc.Version().then((v) => (ver = v));
 
   async function checkUpdate(): Promise<void> {
@@ -19,6 +22,34 @@
       updateRes = { current: ver, available: false, error: errMsg(e) };
     } finally {
       checking = false;
+    }
+  }
+
+  async function downloadUpdate(): Promise<void> {
+    if (!assetURL.trim() || !/^[0-9a-fA-F]{64}$/.test(assetSHA.trim())) {
+      flash("Paste the release asset URL and its published SHA-256 first.");
+      return;
+    }
+    let dst: string;
+    try {
+      const res = await Dialogs.SaveFile({
+        Title: "Save verified update asset",
+        Filename: assetURL.split("/").pop() || "gohex-update.bin",
+      });
+      dst = (Array.isArray(res) ? res[0] : res) as string;
+    } catch (e) {
+      flash(`Save dialog failed: ${errMsg(e)}`);
+      return;
+    }
+    if (!dst) return;
+    downloading = true;
+    try {
+      const r = await svc.UpdateDownload(assetURL.trim(), assetSHA.trim(), dst);
+      flash(`Verified update saved: ${r.bytes} bytes → ${r.path} (sha256:${r.sha256}). Install it manually.`);
+    } catch (e) {
+      flash(errMsg(e));
+    } finally {
+      downloading = false;
     }
   }
 </script>
@@ -56,6 +87,31 @@
           You are up to date ({updateRes.latest ?? updateRes.current}).
         {/if}
       </p>
+    {/if}
+
+    {#if updateRes?.available}
+      <div class="dl">
+        <p class="disc">
+          Downloads are never automatic. Paste the asset URL and the SHA-256
+          published with the release; GoHex verifies the digest before the file
+          is kept, and never executes it — installing stays your call.
+        </p>
+        <input
+          class="mono"
+          bind:value={assetURL}
+          placeholder="https://…/gohex_linux_amd64.tar.gz"
+          aria-label="Release asset URL"
+        />
+        <input
+          class="mono"
+          bind:value={assetSHA}
+          placeholder="sha256 hex (64 chars)"
+          aria-label="Expected SHA-256"
+        />
+        <button onclick={() => void downloadUpdate()} disabled={downloading}>
+          {downloading ? "Downloading…" : "Download & verify…"}
+        </button>
+      </div>
     {/if}
 
     <p class="disc">{store.t("dialog.disclaimer.body")}</p>
@@ -124,6 +180,23 @@
 
   .update.ok {
     color: var(--accent);
+  }
+
+  .dl {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .dl input {
+    width: 100%;
+    font-size: 12px;
+    padding: 6px 8px;
+    background: var(--bg-app, #111);
+    color: var(--text, #eee);
+    border: 1px solid var(--border);
+    border-radius: 6px;
   }
 
   .disc {

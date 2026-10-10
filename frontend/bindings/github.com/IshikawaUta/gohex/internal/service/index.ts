@@ -27,5 +27,6 @@ export type {
     TemplateField,
     TemplateInfo,
     TimelineFilter,
+    UpdateDownloadResult,
     WindowData
 } from "./models.js";

@@ -289,6 +289,15 @@ export interface TimelineFilter {
 }
 
 /**
+ * UpdateDownloadResult describes a verified download.
+ */
+export interface UpdateDownloadResult {
+    "path": string;
+    "bytes": number;
+    "sha256": string;
+}
+
+/**
  * WindowData is one viewport slice: raw bytes plus the decoded text column.
  */
 export interface WindowData {

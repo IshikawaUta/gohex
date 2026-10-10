@@ -930,6 +930,20 @@ export function UpdateCheck(): $CancellablePromise<update$0.Result> {
 }
 
 /**
+ * UpdateDownload fetches a release asset and verifies it against the
+ * SHA-256 the release published. The same opt-in gate as UpdateCheck
+ * applies (GOHEX_UPDATE_CHECK=1); nothing is downloaded otherwise. The
+ * asset lands at dstPath only when the digest matches — a mismatch
+ * deletes the partial file and reports a Go error, because a corrupted
+ * binary is a fault, not information. GoHex never executes the download:
+ * installing and launching an update stays a manual, examiner-controlled
+ * step. Every attempt, success or failure, is audited.
+ */
+export function UpdateDownload(url: string, wantSHA256: string, dstPath: string): $CancellablePromise<$models.UpdateDownloadResult> {
+    return $Call.ByID(3464761779, url, wantSHA256, dstPath);
+}
+
+/**
  * Version returns the application version.
  */
 export function Version(): $CancellablePromise<string> {

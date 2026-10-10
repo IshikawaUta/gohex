@@ -9,10 +9,13 @@ package update
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -162,4 +165,74 @@ func split(v string) ([]int, string) {
 		nums = append(nums, n)
 	}
 	return nums, pre
+}
+
+// maxAsset caps a release download. GoHex binaries are tens of MiB;
+// anything near this cap is either the wrong file or an attack.
+const maxAsset = 256 << 20 // 256 MiB
+
+// Download fetches a release asset and verifies it against wantSHA256
+// (lowercase or uppercase hex, 64 characters). The body is streamed
+// through the hash and a size cap, so a lying Content-Length cannot
+// allocate the process to death. The verified bytes are written to
+// dstPath with O_EXCL — an existing file is never overwritten.
+//
+// Download makes no connection unless the caller asks for one; it is
+// the second half of the opt-in update flow (Check tells you a release
+// exists, Download fetches it).
+func (c *Checker) Download(ctx context.Context, url, wantSHA256, dstPath string) (int64, string, error) {
+	if url == "" {
+		return 0, "", fmt.Errorf("update download: empty url")
+	}
+	if len(wantSHA256) != 64 {
+		return 0, "", fmt.Errorf("update download: wantSHA256 must be 64 hex chars")
+	}
+	if dstPath == "" {
+		return 0, "", fmt.Errorf("update download: empty destination")
+	}
+	client := c.Client
+	if client == nil {
+		client = &http.Client{Timeout: 5 * time.Minute}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, "", err
+	}
+	req.Header.Set("User-Agent", "GoHex/update-download")
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, "", fmt.Errorf("update download: HTTP %d", resp.StatusCode)
+	}
+
+	dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return 0, "", fmt.Errorf("update download: %w", err)
+	}
+	abort := func(err error) (int64, string, error) {
+		dst.Close()
+		os.Remove(dstPath)
+		return 0, "", err
+	}
+
+	h := sha256.New()
+	n, err := io.Copy(io.MultiWriter(dst, h), io.LimitReader(resp.Body, maxAsset+1))
+	if err != nil {
+		return abort(fmt.Errorf("update download: %w", err))
+	}
+	if n > maxAsset {
+		return abort(fmt.Errorf("update download: asset exceeds %d bytes", int64(maxAsset)))
+	}
+	if err := dst.Close(); err != nil {
+		return abort(fmt.Errorf("update download close: %w", err))
+	}
+	got := hex.EncodeToString(h.Sum(nil))
+	if !strings.EqualFold(got, wantSHA256) {
+		os.Remove(dstPath)
+		return 0, "", fmt.Errorf("update download: sha256 mismatch: got %s want %s", got, strings.ToLower(wantSHA256))
+	}
+	return n, got, nil
 }
