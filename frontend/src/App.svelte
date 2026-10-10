@@ -23,6 +23,7 @@
   import Template from "./lib/dialogs/Template.svelte";
   import Dump from "./lib/dialogs/Dump.svelte";
   import Compare from "./lib/dialogs/Compare.svelte";
+  import Utilities from "./lib/dialogs/Utilities.svelte";
 
   let doc = $derived(store.active);
   let ready = $state(false);
@@ -107,7 +108,8 @@
         store.showScript ||
         store.showTemplate ||
         store.showDump ||
-        store.showCompare
+        store.showCompare ||
+        store.showUtilities
       ) {
         store.showPrefs = false;
         store.showAbout = false;
@@ -120,6 +122,7 @@
         store.showTemplate = false;
         store.showDump = false;
         store.showCompare = false;
+        store.showUtilities = false;
         return;
       }
       if (store.showEthics) {
@@ -285,6 +288,9 @@
   {/if}
   {#if store.showCompare}
     <Compare />
+  {/if}
+  {#if store.showUtilities}
+    <Utilities />
   {/if}
 </div>
 

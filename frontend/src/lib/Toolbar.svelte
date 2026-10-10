@@ -44,6 +44,11 @@
       title: "Byte-compare two open documents and list the differing ranges (read-only)",
       run: () => (store.showCompare = true),
     },
+    {
+      label: "Utilities",
+      title: "Entropy, calculator, regex, strings, split/join, shred, generators, timestamps, PNG export",
+      run: () => (store.showUtilities = true),
+    },
   ];
 
   $effect(() => {

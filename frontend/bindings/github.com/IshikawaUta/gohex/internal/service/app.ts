@@ -40,6 +40,9 @@ import * as template$0 from "../template/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as update$0 from "../update/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as util$0 from "../util/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -72,6 +75,13 @@ export function BrowserProfiles(home: string): $CancellablePromise<browser$0.Pro
  */
 export function BrowserRead(p: browser$0.Profile): $CancellablePromise<browser$0.Report> {
     return $Call.ByID(714334138, p);
+}
+
+/**
+ * ByteFreq returns the top-n byte histogram of the file at path.
+ */
+export function ByteFreq(path: string, topN: number): $CancellablePromise<util$0.ByteCount[] | null> {
+    return $Call.ByID(2568176046, path, topN);
 }
 
 /**
@@ -292,6 +302,24 @@ export function EditingAllowed(): $CancellablePromise<boolean> {
 }
 
 /**
+ * EntropyOf returns the Shannon entropy in bits/byte of the whole file
+ * at path, plus its size.
+ */
+export function EntropyOf(path: string): $CancellablePromise<{ [_ in string]?: number } | null> {
+    return $Call.ByID(3667474810, path);
+}
+
+/**
+ * ExportPNG writes a grayscale PNG rendering of [offset, offset+length)
+ * of the document with the given id. Each input byte becomes a
+ * scale×scale block, the classic "screenshot the bytes" export. It is
+ * read-only and audited as an export.
+ */
+export function ExportPNG(id: number, offset: number, length: number, scale: number, path: string): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(3996205539, id, offset, length, scale, path);
+}
+
+/**
  * FillRange overwrites the range with a repeated byte value.
  */
 export function FillRange(id: number, offset: number, length: number, value: number): $CancellablePromise<void> {
@@ -357,10 +385,26 @@ export function HashDocument(id: number, algo: string, selectionOnly: boolean): 
 }
 
 /**
+ * HexCalc evaluates an integer expression. Accepts decimal, 0x-hex,
+ * + - * / % and parentheses. The result is returned both ways so the
+ * GUI can render decimal and hex without re-parsing.
+ */
+export function HexCalc(expr: string): $CancellablePromise<{ [_ in string]?: string } | null> {
+    return $Call.ByID(1531365830, expr);
+}
+
+/**
  * InsertBytes splices data into the document at offset.
  */
 export function InsertBytes(id: number, offset: number, data: string | null): $CancellablePromise<void> {
     return $Call.ByID(4156623546, id, offset, data);
+}
+
+/**
+ * JoinFiles concatenates parts into dst.
+ */
+export function JoinFiles(parts: string[] | null, dst: string): $CancellablePromise<number> {
+    return $Call.ByID(3499305933, parts, dst);
 }
 
 /**
@@ -469,6 +513,13 @@ export function Partitions(path: string): $CancellablePromise<$models.DiskLayout
 }
 
 /**
+ * PasswordGen returns a random password of the given length.
+ */
+export function PasswordGen(n: number): $CancellablePromise<string> {
+    return $Call.ByID(3907926079, n);
+}
+
+/**
  * Preferences returns a copy of the active configuration.
  */
 export function Preferences(): $CancellablePromise<config$0.Preferences> {
@@ -492,6 +543,13 @@ export function ProbeImage(path: string): $CancellablePromise<$models.ImageInfo>
 }
 
 /**
+ * RandomHex returns n random bytes as uppercase hex.
+ */
+export function RandomHex(n: number): $CancellablePromise<string> {
+    return $Call.ByID(3909693294, n);
+}
+
+/**
  * ReadWindow returns up to length bytes at offset together with the decoded
  * text column (for the visible viewport only — the grid is virtual).
  */
@@ -504,6 +562,14 @@ export function ReadWindow(id: number, offset: number, length: number): $Cancell
  */
 export function Redo(id: number): $CancellablePromise<string> {
     return $Call.ByID(2009925102, id);
+}
+
+/**
+ * RegexTest runs a regex over the file at path (capped at 64 MiB)
+ * and returns up to limit matches.
+ */
+export function RegexTest(path: string, pattern: string, limit: number): $CancellablePromise<util$0.SearchMatch[] | null> {
+    return $Call.ByID(3251243537, path, pattern, limit);
 }
 
 /**
@@ -585,6 +651,23 @@ export function ShortcutDefaults(): $CancellablePromise<{ [_ in string]?: string
 }
 
 /**
+ * Shred overwrites and removes path. bestEffort is always true in
+ * practice (CoW/SSD), and the GUI must surface that caveat; the audit
+ * record carries it so the examiner's notes reflect reality.
+ */
+export function Shred(path: string, passes: number): $CancellablePromise<void> {
+    return $Call.ByID(3826760980, path, passes);
+}
+
+/**
+ * SplitFile splits src into pieces of pieceSize bytes named by
+ * dstPattern (must contain %d) and returns the piece paths.
+ */
+export function SplitFile(src: string, dstPattern: string, pieceSize: number): $CancellablePromise<string[] | null> {
+    return $Call.ByID(2545740880, src, dstPattern, pieceSize);
+}
+
+/**
  * StartupInfo returns the hints recorded by SetStartupHints.
  */
 export function StartupInfo(): $CancellablePromise<$models.StartupInfo> {
@@ -596,6 +679,13 @@ export function StartupInfo(): $CancellablePromise<$models.StartupInfo> {
  */
 export function Stat(path: string): $CancellablePromise<$models.FileInfo> {
     return $Call.ByID(3942465492, path);
+}
+
+/**
+ * StringsOf extracts printable strings from the file at path.
+ */
+export function StringsOf(path: string, minLen: number, limit: number): $CancellablePromise<util$0.SearchMatch[] | null> {
+    return $Call.ByID(1321056933, path, minLen, limit);
 }
 
 /**
@@ -639,10 +729,32 @@ export function TimelineQuery(f: $models.TimelineFilter): $CancellablePromise<fo
 }
 
 /**
+ * TimestampConvert renders an epoch value in every format a forensic
+ * examiner needs. unit is s / ms / us / ns (default s).
+ */
+export function TimestampConvert(epoch: number, unit: string): $CancellablePromise<{ [_ in string]?: string } | null> {
+    return $Call.ByID(2805988165, epoch, unit);
+}
+
+/**
  * Translate localises a UI string.
  */
 export function Translate(lang: string, key: string, ...args: any[]): $CancellablePromise<string> {
     return $Call.ByID(143922060, lang, key, args);
+}
+
+/**
+ * ULIDGen returns a fresh lexicographically-sortable ULID.
+ */
+export function ULIDGen(): $CancellablePromise<string> {
+    return $Call.ByID(2212640872);
+}
+
+/**
+ * UUIDGen returns a fresh RFC 4122 v4 UUID.
+ */
+export function UUIDGen(): $CancellablePromise<string> {
+    return $Call.ByID(2330136865);
 }
 
 /**
