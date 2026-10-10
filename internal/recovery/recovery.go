@@ -68,6 +68,16 @@ type ValidateFunc func(s Stream, start int64) bool
 // this to avoid truncating the record itself.
 type FooterEndFunc func(s Stream, footerStart, limit int64) int64
 
+// FooterOK, when set, structurally verifies one footer occurrence before the
+// candidate is closed on it. start is the candidate's start offset, which
+// formats like XZ need to check the footer against their header. It lets a
+// format whose footer signature is short (XZ's two-byte "YZ") check the
+// surrounding record and keep searching when the match is incidental.
+// Returning false makes the scanner try the next occurrence of the same
+// footer; when none validates the candidate is dropped like any other
+// unresolved one.
+type FooterOKFunc func(s Stream, start, footerStart, limit int64) bool
+
 // Spec describes one carveable file type. A spec must carry a Header and at
 // least one of Footer or Length — otherwise the extent would have to be guessed.
 type Spec struct {
@@ -77,6 +87,12 @@ type Spec struct {
 	Display string
 	// Ext is the suggested extension including the leading dot.
 	Ext string
+
+	// LowConfidence marks types whose match is a fallback: the bytes are
+	// certainly of the family, but the exact provenance could not be
+	// pinned down (a bare MZ executable, an OLE container whose root
+	// directory is unreadable).
+	LowConfidence bool
 
 	// Header is the magic number searched for. The candidate's start offset is
 	// HeaderOffset+StartDelta, which lets formats whose magic number is not at
@@ -88,6 +104,8 @@ type Spec struct {
 
 	// Footer, when set, terminates the object; the extent ends after it.
 	Footer []byte
+	// FooterOK refines Footer matching (may be set without FooterEnd).
+	FooterOK FooterOKFunc
 	// FooterEnd refines the extent once Footer matched.
 	FooterEnd FooterEndFunc
 
@@ -111,6 +129,8 @@ type SpecInfo struct {
 	Ext     string `json:"ext"`
 	// Extent describes how the size is determined: "footer" or "length".
 	Extent string `json:"extent"`
+	// LowConfidence mirrors Spec.LowConfidence for the UI.
+	LowConfidence bool `json:"lowConfidence,omitempty"`
 }
 
 // Carved is one recovered object.
@@ -125,6 +145,8 @@ type Carved struct {
 	// Truncated marks an object whose declared or region-bounded extent runs
 	// past the end of the scanned range.
 	Truncated bool `json:"truncated"`
+	// LowConfidence marks a fallback match (see Spec.LowConfidence).
+	LowConfidence bool `json:"lowConfidence,omitempty"`
 }
 
 // Options configures a carve run.
@@ -266,7 +288,7 @@ func (c *carver) resolve(p *pending, seg, readEnd int64, pos map[*Spec][]int64) 
 	if from < seg {
 		from = seg
 	}
-	if at := firstAt(pos[p.spec], from, flen, p.limit); at >= 0 {
+	if at := matchingFooter(p.spec, pos[p.spec], from, flen, p.limit, c.s, p.start); at >= 0 {
 		end := at + flen
 		if p.spec.FooterEnd != nil {
 			if e := p.spec.FooterEnd(c.s, at, p.limit); e > p.limit {
@@ -365,14 +387,15 @@ func (c *carver) emit(p *pending, length int64, truncated bool) {
 		return
 	}
 	c.out = append(c.out, Carved{
-		Index:     len(c.out),
-		Type:      p.spec.Name,
-		Display:   p.spec.Display,
-		Ext:       p.spec.Ext,
-		Offset:    p.start,
-		Length:    length,
-		HeaderLen: headerLen(p.spec),
-		Truncated: truncated,
+		Index:         len(c.out),
+		Type:          p.spec.Name,
+		Display:       p.spec.Display,
+		Ext:           p.spec.Ext,
+		Offset:        p.start,
+		Length:        length,
+		HeaderLen:     headerLen(p.spec),
+		Truncated:     truncated,
+		LowConfidence: p.spec.LowConfidence,
 	})
 	c.nextFrom = p.start + length
 }
@@ -456,17 +479,22 @@ func footerPositions(specs []*Spec, buf []byte, base int64) map[*Spec][]int64 {
 	return out
 }
 
-// firstAt finds the first footer occurrence at or after from whose end stays
-// inside limit, or -1.
-func firstAt(list []int64, from, flen, limit int64) int64 {
+// matchingFooter finds the first footer occurrence at or after from whose end
+// stays inside limit and, when the spec defines FooterOK, passes that check.
+// Occurrences rejected by FooterOK are skipped, so a short signature that
+// coincidentally matches inside unrelated data does not close the candidate.
+func matchingFooter(sp *Spec, list []int64, from, flen, limit int64, s Stream, start int64) int64 {
 	i := sort.Search(len(list), func(i int) bool { return list[i] >= from })
-	if i >= len(list) {
-		return -1
+	for ; i < len(list); i++ {
+		at := list[i]
+		if at+flen > limit {
+			return -1 // occurrences are ascending, so none of them fits
+		}
+		if sp.FooterOK == nil || sp.FooterOK(s, start, at, limit) {
+			return at
+		}
 	}
-	if list[i]+flen > limit {
-		return -1 // occurrences are ascending, so none of them fits
-	}
-	return list[i]
+	return -1
 }
 
 // readFullAt fills p at off, treating a short read as an error.
@@ -525,6 +553,7 @@ func Types() []SpecInfo {
 		}
 		out = append(out, SpecInfo{
 			Name: sp.Name, Display: sp.Display, Ext: sp.Ext, Extent: extent,
+			LowConfidence: sp.LowConfidence,
 		})
 	}
 	return out
