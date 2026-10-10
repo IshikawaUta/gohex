@@ -1,0 +1,11 @@
+Version=1
+EventType=APPCRASH
+EventTime=134116992000000000
+ReportIdentifier=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+AppName=GoHex.exe
+AppVerName=1.2.3.0
+PID=999
+Sig[0].Name=Exception Code
+Sig[0].Value=c0000005
+Sig[1].Name=Exception Parameter
+Sig[1].Value=0000000000000000

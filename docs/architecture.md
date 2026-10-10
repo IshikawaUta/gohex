@@ -19,6 +19,7 @@ later stages plug in.
 │ internal/core        Sources: files, mmap, windowed reads  │
 │ internal/disk        MBR / EBR / GPT partition tables      │
 │ internal/image       image containers (raw, E01, VHD, ...) │
+│ internal/dump        crash reports (.ips, tombstone, WER)    │
 │ internal/memory      memory dumps (LiME, AVML, ELF core, MDMP, windump) │
 │ internal/fs          read-only FAT/NTFS/ext/ISO/HFS+/APFS  │
 │ internal/recovery    signature-based file carving          │
@@ -147,6 +148,20 @@ The service surfaces all of this as `MemoryInfo`/`MemoryLocate` plus
 `MemoryOpen`, which registers a capture (or a byte range of its
 uncompressed view) as a hex document — the route compressed AVML takes —
 behind the one-time ethics notice `docs/legal.md` requires.
+
+### Crash reports
+
+`internal/dump` parses the companion *text* reports — macOS/iOS `.ips`,
+Android tombstones and Windows WER — into one `Report` summary (source,
+format, app, version, timestamp, type, pid/tid, frame count, verbatim top
+frames, format-specific details). Detection is content-based: JSON header
+with `bug_type` for `.ips`, banner or fingerprint+backtrace for
+tombstones, `EventType=` with identifiers for WER; anything else is
+`ErrUnrecognized` instead of a guess. Malformed content inside a detected
+format errors too — a partial parse would be worse than none in a triage
+workflow. `DumpInfo` exposes it service-side with an audit record, the
+GUI renders it in the Crash report panel, and symbolication is a
+non-goal: frames ship exactly as written.
 
 ### Search
 
@@ -387,16 +402,23 @@ re-render. The store is the only shared mutable state.
 |---|---|---|
 | 1 ✅ | Hex editor core + GUI shell | `core`, `hex`, `encoding`, `hash`, `audit`, `config`, `service` |
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
-| 3 ◐ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems and multi-segment E01/L01 image sets are done. `internal/dump` still holds only its planned layout | `recovery`, `browser`, `forensics`, `dump` |
+| 3 ✅ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems, multi-segment E01/L01 image sets and crash-report parsers (`.ips`, tombstone, WER) | `recovery`, `browser`, `forensics`, `dump` |
 | 4 ✅ | Memory viewer & crash-dump analyzer: LiME, AVML (Snappy), raw, ELF core, Windows minidump and Windows 64-bit dumps (complete + bitmap) | `memory` |
 | 5 ◐ | Scripting engine, structure templates, opt-in update check and the configurable keymap engine shipped (all with GUI surfaces). Utilities, packaging and signing remain | `script`, `template`, `update`, `keymap` |
 
-Stage 3 ships `internal/recovery`, `internal/browser` and `internal/forensics`.
-`internal/dump` still holds only its planned sub-directory layout, which is
-for **resources rather than Go packages** — the same convention
-`internal/forensics` keeps for its report template under `forensics/report`.
-The Go code stays at the package root because `case` is not a legal Go package
-name. HFS+ and APFS arrived in the last stage-3 slice as eager, read-only
+Stage 3 ships `internal/recovery`, `internal/browser`, `internal/forensics`
+and `internal/dump`. `internal/dump` holds the text/JSON crash reports that
+triage collects next to memory captures — macOS/iOS `.ips` (header +
+body JSON), Android tombstones (banner/fingerprint/backtrace line scan)
+and Windows WER `Report.wer` (key=value signatures) — while the binary
+capture formats stay in `internal/memory`. Detection is content-based and
+a report that matches none of them errors as unrecognized rather than
+guessing; frames are reported verbatim, because symbolication would mean
+shipping symbol servers or debug files, which the project does not do.
+The Go code sits at the package root and fixtures live under
+`testdata/<platform>`; the original placeholder sub-directory layout was
+dropped when the package gained real parsers.
+HFS+ and APFS arrived in the last stage-3 slice as eager, read-only
 parsers: admitting a half-working parser would be worse than saying "not yet
 supported", so both ship only with their full feature sets (HFS+ with the
 catalogue, extents-overflow and key-compare folding; APFS with checkpoint

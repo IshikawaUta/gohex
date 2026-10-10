@@ -1,0 +1,18 @@
+*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+Build fingerprint: 'google/sdk_gphone64_x86_64/emu64x:14/UE1A.230829.036/11228894:userdebug/dev-keys'
+Revision: '0'
+ABI: 'arm64'
+Timestamp: 2026-10-10 12:00:00.123456789+0000
+Process uptime: 10s
+Cmdline: com.example.forensics
+pid: 1234, tid: 1234, name: com.example.forensics  >>> com.example.forensics <<<
+signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x0000000000000000
+    x0  0000000000000000  x1  0000000000000010
+
+backtrace:
+      #00 pc 0000000000045abc  /apex/com.android.runtime/lib64/bionic/libc.so (memcpy+188)
+      #01 pc 0000000000012345  /data/app/com.example.forensics/base.apk (Java_com_example_Main_read+64)
+      #02 pc 0000000000099999  /apex/com.android.runtime/lib64/bionic/libc.so (__ioctl+32)
+
+stack:
+      #00 0000000000000000

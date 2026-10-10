@@ -122,6 +122,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   keys through the user's map instead of hard-coded handlers, and the
   Preferences dialog edits every chord (empty unbinds, reset restores the
   defaults via `ShortcutDefaults`).
+- **Crash-report parsers** (`internal/dump`): content-based parsing of
+  macOS/iOS `.ips` (header + body JSON), Android tombstones (banner /
+  build fingerprint / signal / backtrace line scan) and Windows WER
+  `Report.wer` (EventType, app version, FILETIME, signature records) into
+  one structured `Report`. Frames are reported verbatim — no
+  symbolication; malformed or unrecognized input errors instead of
+  guessing. Exposed as `DumpInfo` with audit records and a GUI Crash
+  report panel.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

@@ -72,6 +72,13 @@
   >
     Template
   </button>
+  <button
+    class="tb"
+    onclick={() => (store.showDump = true)}
+    title="Parse a crash report: macOS/iOS .ips, Android tombstone, Windows WER (read-only)"
+  >
+    Crash report
+  </button>
   <span class="sep"></span>
   <button
     class="tb"

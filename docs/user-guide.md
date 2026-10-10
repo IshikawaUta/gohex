@@ -142,6 +142,26 @@ dumps (`PAGEDUMP`), Windows kernel and small memory dumps, and Windows 8+
 compressed kernel dumps are not yet supported and report an explicit error
 (future work).
 
+## Crash reports
+
+Toolbar → **Crash report** parses the text/JSON reports that sit next to
+memory captures in a triage workflow — read-only, never symbolicated:
+
+| Format | Detection |
+|---|---|
+| macOS/iOS `.ips` | JSON header with `bug_type` + JSON body |
+| Android `tombstone` | standard banner or build fingerprint + backtrace |
+| Windows WER `Report.wer` | `EventType=` + report identifiers/signatures |
+
+**Open report…** then **Parse** shows the structured summary: application,
+version, timestamp, crash type (bug type / signal / event type), pid/tid,
+frame count, the top frames exactly as written in the file, plus
+format-specific details (exception signal, fault address, build
+fingerprint, WER signatures, FILETIME converted to RFC 3339). A report
+that is not one of the supported formats reports "unrecognized crash
+report format" instead of guessing; files over 8 MiB are rejected. Every
+parse is audited.
+
 ## Carving
 
 Toolbar → **Carve** recovers files that are no longer reachable through a

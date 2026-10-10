@@ -18,6 +18,9 @@ import * as browser$0 from "../browser/models.js";
 import * as config$0 from "../config/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as dump$0 from "../dump/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as forensics$0 from "../forensics/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -257,6 +260,15 @@ export function Disclaimer(): $CancellablePromise<string> {
  */
 export function DocumentInfo(id: number): $CancellablePromise<$models.DocInfo> {
     return $Call.ByID(3652104535, id);
+}
+
+/**
+ * DumpInfo parses a crash report (macOS/iOS .ips, Android tombstone or
+ * Windows WER) read-only and returns its structured summary. The parse is
+ * recorded in the audit log like every other file open.
+ */
+export function DumpInfo(path: string): $CancellablePromise<dump$0.Report> {
+    return $Call.ByID(3566819328, path);
 }
 
 /**

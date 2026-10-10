@@ -21,6 +21,7 @@
   import Case from "./lib/dialogs/Case.svelte";
   import Script from "./lib/dialogs/Script.svelte";
   import Template from "./lib/dialogs/Template.svelte";
+  import Dump from "./lib/dialogs/Dump.svelte";
 
   let doc = $derived(store.active);
   let ready = $state(false);
@@ -103,7 +104,8 @@
         store.showMemory ||
         store.showCase ||
         store.showScript ||
-        store.showTemplate
+        store.showTemplate ||
+        store.showDump
       ) {
         store.showPrefs = false;
         store.showAbout = false;
@@ -114,6 +116,7 @@
         store.showCase = false;
         store.showScript = false;
         store.showTemplate = false;
+        store.showDump = false;
         return;
       }
       if (store.showEthics) {
@@ -273,6 +276,9 @@
   {/if}
   {#if store.showTemplate}
     <Template />
+  {/if}
+  {#if store.showDump}
+    <Dump />
   {/if}
 </div>
 
