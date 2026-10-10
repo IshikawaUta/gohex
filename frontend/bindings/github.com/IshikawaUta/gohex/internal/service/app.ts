@@ -85,6 +85,13 @@ export function ByteFreq(path: string, topN: number): $CancellablePromise<util$0
 }
 
 /**
+ * CancelClone requests cancellation of a running job.
+ */
+export function CancelClone(id: number): $CancellablePromise<void> {
+    return $Call.ByID(2684190377, id);
+}
+
+/**
  * CarveExport writes one recovered object from path to dstPath. The destination
  * must not exist, the copy is hashed, and both the success and the failure are
  * recorded in the audit log.
@@ -210,6 +217,20 @@ export function CaseState(): $CancellablePromise<$models.CaseState> {
  */
 export function Catalog(lang: string): $CancellablePromise<{ [_ in string]?: string } | null> {
     return $Call.ByID(3191210037, lang);
+}
+
+/**
+ * CloneList returns every job this session has started.
+ */
+export function CloneList(): $CancellablePromise<$models.CloneJobStatus[] | null> {
+    return $Call.ByID(376685507);
+}
+
+/**
+ * CloneStatus returns the live status of one job.
+ */
+export function CloneStatus(id: number): $CancellablePromise<$models.CloneJobStatus> {
+    return $Call.ByID(2632952973, id);
 }
 
 /**
@@ -665,6 +686,16 @@ export function Shred(path: string, passes: number): $CancellablePromise<void> {
  */
 export function SplitFile(src: string, dstPattern: string, pieceSize: number): $CancellablePromise<string[] | null> {
     return $Call.ByID(2545740880, src, dstPattern, pieceSize);
+}
+
+/**
+ * StartClone begins an asynchronous clone of srcPath. Progress is
+ * emitted as a "clone:progress" event; the job can be cancelled with
+ * CancelClone. The source may be a regular file or a block device;
+ * opening is read-only, and the run is audited as an export.
+ */
+export function StartClone(req: $models.CloneRequest): $CancellablePromise<$models.CloneJobStatus> {
+    return $Call.ByID(4228601835, req);
 }
 
 /**

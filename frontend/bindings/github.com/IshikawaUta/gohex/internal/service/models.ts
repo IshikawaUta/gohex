@@ -22,6 +22,46 @@ export interface CaseState {
 }
 
 /**
+ * CloneJobStatus is the live view of one clone job.
+ */
+export interface CloneJobStatus {
+    "id": number;
+    "srcPath": string;
+    "dstPattern": string;
+    "copied": number;
+    "total": number;
+    "badSectors": number;
+    "partIndex": number;
+
+    /**
+     * running | done | error | cancelled
+     */
+    "state": string;
+    "error"?: string;
+
+    /**
+     * JSON CloneResult when done
+     */
+    "result"?: string;
+}
+
+/**
+ * CloneRequest describes one async clone job.
+ */
+export interface CloneRequest {
+    "srcPath": string;
+    "dstPattern": string;
+
+    /**
+     * none | gzip | zstd
+     */
+    "compression": string;
+    "splitSize": number;
+    "resume": boolean;
+    "badSectorLog": string;
+}
+
+/**
  * DiskLayout is the parsed partition table of an image with a filesystem
  * probed per partition.
  */

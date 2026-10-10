@@ -8,6 +8,8 @@ export {
 
 export type {
     CaseState,
+    CloneJobStatus,
+    CloneRequest,
     DiskLayout,
     DocInfo,
     FileInfo,

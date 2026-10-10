@@ -153,6 +153,12 @@ type App struct {
 
 	startupSkipDisclaimer bool
 	startupFiles          []string
+
+	// Async disk-clone jobs. cloneSeq hands out job ids; clones keeps
+	// the live set (a job is retained after completion so its final
+	// status can still be queried).
+	cloneSeq int64
+	clones   map[int64]*cloneJob
 }
 
 // New builds the application service: loads preferences (missing file → safe

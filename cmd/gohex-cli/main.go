@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -34,6 +35,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdInfo(args[1:], stdout, stderr)
 	case "search":
 		return cmdSearch(args[1:], stdout, stderr)
+	case "clone":
+		return cmdClone(args[1:], stdout, stderr)
 	case "version", "--version", "-v":
 		fmt.Fprintf(stdout, "gohex-cli %s\n", version.Version)
 		return 0
@@ -48,17 +51,24 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprint(w, `gohex-cli — read-only hex/forensics companion CLI
+	io.WriteString(w, `gohex-cli — read-only hex/forensics companion CLI
 
 Usage:
   gohex-cli hash   [-algo sha256] FILE     hash a file (streams; works on E01/L01/VHD/...)
   gohex-cli info   FILE                    size, container format, partition table
   gohex-cli search [-hex PATTERN | -text PATTERN] [-enc ascii|utf16le|utf16be] [-limit N] FILE
+  gohex-cli clone  [-compress none|gzip|zstd] [-split SIZE] [-resume] [-badlog FILE] SRC DST
   gohex-cli version
 
 Patterns:
   -hex  "DE AD ?? EF"   hex bytes, ?? is a wildcard nibble pair
   -text "password"      literal text in the encoding given by -enc (default ascii)
+
+Clone:
+  SRC is read-only; DST is the destination (a %d placeholder in DST
+  enables -split). The clone is verified with SHA-256 on both ends
+  (compression=none); unreadable sectors are zero-filled and logged
+  to -badlog. -resume continues an interrupted run from its state file.
 
 Exit codes: 0 ok, 1 error, 2 usage, 3 no matches.
 `)
@@ -188,6 +198,72 @@ func cmdSearch(args []string, stdout, stderr io.Writer) int {
 	}
 	for _, m := range matches {
 		fmt.Fprintf(stdout, "0x%016x\t%d\n", m.Start, m.Length)
+	}
+	return 0
+}
+
+func cmdClone(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("clone", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	compress := fs.String("compress", "none", "destination compression: none, gzip or zstd")
+	split := fs.Int64("split", 0, "roll the output every SIZE bytes (requires a %%d in DST; compression must be none)")
+	resume := fs.Bool("resume", false, "continue an interrupted run from its state file (compression must be none)")
+	badlog := fs.String("badlog", "", "append one line per unreadable sector range to this file")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 2 {
+		fmt.Fprintln(stderr, "gohex-cli clone: exactly SRC and DST required")
+		return 2
+	}
+	src, dstPattern := fs.Arg(0), fs.Arg(1)
+	f, err := os.Open(src)
+	if err != nil {
+		fmt.Fprintf(stderr, "gohex-cli clone: %v\n", err)
+		return 1
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		fmt.Fprintf(stderr, "gohex-cli clone: %v\n", err)
+		return 1
+	}
+	size := fi.Size()
+	if size == 0 {
+		if end, serr := f.Seek(0, io.SeekEnd); serr == nil && end > 0 {
+			size = end
+			_, _ = f.Seek(0, io.SeekStart)
+		}
+	}
+	var lastPct int64 = -1
+	res, err := disk.Clone(context.Background(), f, size, dstPattern, disk.CloneOptions{
+		Compression:  *compress,
+		SplitSize:    *split,
+		Resume:       *resume,
+		BadSectorLog: *badlog,
+	}, func(p disk.CloneProgress) {
+		if p.Total > 0 {
+			pct := p.Copied * 100 / p.Total
+			if pct != lastPct {
+				fmt.Fprintf(stderr, "\rclone: %d/%d (%d%%) bad=%d part=%d", p.Copied, p.Total, pct, p.BadSectors, p.PartIndex)
+				lastPct = pct
+			}
+		}
+	})
+	fmt.Fprintln(stderr)
+	if err != nil {
+		fmt.Fprintf(stderr, "gohex-cli clone: %v\n", err)
+		return 1
+	}
+	fmt.Fprintf(stdout, "dest\t%s\n", res.DestPath)
+	for i, p := range res.Parts {
+		fmt.Fprintf(stdout, "part\t%d\t%s\n", i, p)
+	}
+	fmt.Fprintf(stdout, "bytes\t%d\n", res.BytesCopied)
+	fmt.Fprintf(stdout, "badSectors\t%d\n", res.BadSectors)
+	fmt.Fprintf(stdout, "sourceSha256\t%s\n", res.SourceSHA256)
+	if res.DestSHA256 != "" {
+		fmt.Fprintf(stdout, "destSha256\t%s\n", res.DestSHA256)
 	}
 	return 0
 }

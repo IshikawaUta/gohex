@@ -1,12 +1,14 @@
 <script lang="ts">
+  import { onMount, onDestroy } from "svelte";
   import { store, flash } from "../state.svelte";
-  import { svc, Dialogs, errMsg, fromBase64 } from "../api";
+  import { svc, Dialogs, errMsg, fromBase64, Events } from "../api";
   import * as A from "../actions";
   import type {
     DiskLayout,
     FileSystemInfo,
     ImageInfo,
     SaveResult,
+    CloneJobStatus,
   } from "../../../bindings/github.com/IshikawaUta/gohex/internal/service/models";
   import type { Entry } from "../../../bindings/github.com/IshikawaUta/gohex/internal/fs/models";
 
@@ -22,11 +24,49 @@
   let busy = $state(false);
   let error = $state("");
 
+  // Clone v2 state.
+  let cloneOpen = $state(false);
+  let cloneCompress = $state("none");
+  let cloneSplit = $state(0);
+  let cloneResume = $state(false);
+  let cloneBadLog = $state("");
+  let cloneJob = $state<CloneJobStatus | null>(null);
+  let cloneBusy = $state(false);
+
   let parts = $derived(layout?.partitions ?? []);
   let selected = $derived(sel >= 0 && sel < parts.length ? parts[sel] : null);
   let fsOffset = $derived(selected ? selected.partition.start : 0);
   let fsSize = $derived(selected ? selected.partition.size : 0);
   let crumbs = $derived(dir.split("/").filter((c) => c.length > 0));
+  let clonePct = $derived(
+    cloneJob && cloneJob.total > 0 ? Math.floor((cloneJob.copied * 100) / cloneJob.total) : 0,
+  );
+
+  let unsub: (() => void) | null = null;
+  onMount(() => {
+    unsub = Events.On("clone:progress", (ev) => {
+      const d = ev.data as CloneJobStatus | null;
+      if (d && d.id === cloneJob?.id) cloneJob = d;
+    });
+    const done = Events.On("clone:done", (ev) => {
+      const d = ev.data as CloneJobStatus | null;
+      if (d && d.id === cloneJob?.id) {
+        cloneJob = d;
+        cloneBusy = false;
+        if (d.state === "done") {
+          flash(`Clone done: ${d.copied} bytes, ${d.badSectors} bad sectors`);
+        } else if (d.state === "error") {
+          error = d.error ?? "clone failed";
+        }
+      }
+    });
+    const prev = unsub;
+    unsub = () => {
+      prev?.();
+      done();
+    };
+  });
+  onDestroy(() => unsub?.());
 
   async function choose(): Promise<void> {
     try {
@@ -40,6 +80,51 @@
       if (target) await load(target);
     } catch (e) {
       error = `Open dialog failed: ${errMsg(e)}`;
+    }
+  }
+
+  async function startClone(): Promise<void> {
+    if (!path) return;
+    let dst: string;
+    try {
+      const res = await Dialogs.SaveFile({
+        Title: "Clone destination",
+        Filename: `${path.split("/").pop() ?? "clone"}.img`,
+      });
+      dst = (Array.isArray(res) ? res[0] : res) as string;
+    } catch (e) {
+      error = `Save dialog failed: ${errMsg(e)}`;
+      return;
+    }
+    if (!dst) return;
+    if (cloneCompress !== "none" && !dst.endsWith(".gz") && !dst.endsWith(".zst")) {
+      dst += cloneCompress === "gzip" ? ".gz" : ".zst";
+    }
+    cloneBusy = true;
+    error = "";
+    cloneJob = null;
+    try {
+      cloneJob = await svc.StartClone({
+        srcPath: path,
+        dstPattern: dst,
+        compression: cloneCompress,
+        splitSize: cloneSplit,
+        resume: cloneResume,
+        badSectorLog: cloneBadLog,
+      });
+      flash("Clone started");
+    } catch (e) {
+      error = errMsg(e);
+      cloneBusy = false;
+    }
+  }
+
+  async function cancelClone(): Promise<void> {
+    if (!cloneJob) return;
+    try {
+      await svc.CancelClone(cloneJob.id);
+    } catch (e) {
+      error = errMsg(e);
     }
   }
 
@@ -256,7 +341,60 @@
         <button class="primary" onclick={openAsHex} disabled={busy || !path}>
           {selected ? "Open partition as hex" : "Open image as hex"}
         </button>
+        <button onclick={() => (cloneOpen = !cloneOpen)} disabled={!path} title="Forensic disk clone: compress, split, resume, bad-sector log">
+          {cloneOpen ? "Hide clone ▲" : "Clone image… ▼"}
+        </button>
       </div>
+
+      {#if cloneOpen && path}
+        <div class="clone">
+          <div class="clone-row">
+            <label class="field">
+              <span>Compression</span>
+              <select bind:value={cloneCompress} disabled={cloneBusy}>
+                <option value="none">none (raw, SHA-256 verified)</option>
+                <option value="gzip">gzip</option>
+                <option value="zstd">zstd</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Split (bytes, 0 = off)</span>
+              <input type="number" bind:value={cloneSplit} min="0" disabled={cloneBusy || cloneCompress !== "none"} />
+            </label>
+            <label class="field" title="Continue an interrupted run from its state file">
+              <input type="checkbox" bind:checked={cloneResume} disabled={cloneBusy || cloneCompress !== "none"} />
+              <span>Resume</span>
+            </label>
+            <label class="field grow">
+              <span>Bad-sector log</span>
+              <input bind:value={cloneBadLog} placeholder="bad-sectors.log (optional)" disabled={cloneBusy} />
+            </label>
+          </div>
+          <div class="clone-row">
+            {#if cloneBusy && cloneJob}
+              <div class="progress" role="progressbar" aria-valuenow={clonePct} aria-valuemin={0} aria-valuemax={100}>
+                <div class="bar" style="width: {clonePct}%"></div>
+              </div>
+              <span class="mono">{clonePct}% · {fmtSize(cloneJob.copied)} / {fmtSize(cloneJob.total)} · bad {cloneJob.badSectors}</span>
+              <button class="danger" onclick={() => void cancelClone()}>Cancel</button>
+            {:else}
+              <button class="primary" onclick={() => void startClone()} disabled={busy || !path}>
+                Start clone ▶
+              </button>
+              {#if cloneJob?.state === "done"}
+                <span class="dim">Done: {fmtSize(cloneJob.copied)}, {cloneJob.badSectors} bad sectors</span>
+              {:else if cloneJob?.state === "cancelled"}
+                <span class="warn">Cancelled at {fmtSize(cloneJob.copied)} — tick Resume to continue.</span>
+              {/if}
+            {/if}
+          </div>
+          <p class="dim clone-note">
+            Source is opened read-only; the destination is verified with
+            SHA-256 end to end (compression=none). Unreadable sectors are
+            zero-filled and logged. Resume only works for uncompressed clones.
+          </p>
+        </div>
+      {/if}
 
       {#if fsInfo}
         <div class="fshead">
@@ -437,7 +575,58 @@
   .actions {
     display: flex;
     justify-content: flex-end;
+    gap: 10px;
     margin: 12px 0;
+  }
+
+  .clone {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .clone-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .clone-row .field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .clone-row .field.grow {
+    flex: 1;
+    min-width: 200px;
+  }
+  .clone-note {
+    margin: 0;
+    font-size: 11.5px;
+  }
+  .progress {
+    flex: 1;
+    min-width: 160px;
+    height: 10px;
+    background: var(--bg-hover, rgba(127, 127, 127, 0.2));
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .progress .bar {
+    height: 100%;
+    background: var(--accent, #4a9eff);
+    transition: width 0.15s linear;
+  }
+  .danger {
+    background: #a4262c;
+    border: none;
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
   }
 
   .fshead {
