@@ -149,6 +149,7 @@ select:focus {
 kbd {
   font-family: var(--font-mono);
   font-size: 11px;
+  color: var(--text);
   background: var(--bg-raised);
   border: 1px solid var(--border);
   border-bottom-width: 2px;

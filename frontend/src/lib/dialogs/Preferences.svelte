@@ -9,7 +9,7 @@
 
   $effect(() => {
     if (store.showPrefs && store.prefs && !draft) {
-      draft = structuredClone(store.prefs);
+      draft = structuredClone($state.snapshot(store.prefs));
       if (!draft.shortcuts) draft.shortcuts = {};
     }
     if (!store.showPrefs) draft = null;

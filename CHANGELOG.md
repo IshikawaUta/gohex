@@ -154,4 +154,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 
+### Fixed
+
+- **Preferences dialog**: pressing ⚙ (or Ctrl+,) opened nothing —
+  `structuredClone()` on the reactive `$state` proxy of the loaded
+  preferences threw `DataCloneError` on WebKitGTK, which aborted the
+  dialog's mount effect before anything rendered. Clone a
+  `$state.snapshot()` of the preferences instead (verified end-to-end
+  against the local build).
+- **Light theme**: the `Ctrl+O` hint chip on the welcome screen
+  rendered white-on-light — it inherited the primary button's white
+  text onto its raised background; give `kbd` an explicit
+  `color: var(--text)`.
+
 [Unreleased]: https://github.com/IshikawaUta/gohex/compare/HEAD...HEAD
