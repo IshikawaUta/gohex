@@ -9,6 +9,85 @@
 
   let doc = $derived(store.active);
 
+  let toolsOpen = $state(false);
+  let toolsRoot: HTMLDivElement | undefined = $state(undefined);
+  let toolsTrigger: HTMLButtonElement | undefined = $state(undefined);
+  let toolsMenu: HTMLDivElement | undefined = $state(undefined);
+
+  const toolItems = [
+    { label: "Disk", title: "Disk image browser", run: () => (store.showDisk = true) },
+    { label: "Carve", title: "Carve files out of an image", run: () => (store.showCarve = true) },
+    { label: "Browser", title: "Browser history, downloads, bookmarks", run: () => A.openBrowser() },
+    {
+      label: "Memory",
+      title: "Memory capture & crash dump viewer (read-only)",
+      run: () => A.openMemory(),
+    },
+    { label: "Case", title: "Forensic case, evidence and report", run: () => (store.showCase = true) },
+    {
+      label: "Script",
+      title: "Run a sandboxed automation script over the open documents",
+      run: () => (store.showScript = true),
+    },
+    {
+      label: "Template",
+      title: "Overlay a structure template on the active document (read-only)",
+      run: () => (store.showTemplate = true),
+    },
+    {
+      label: "Crash report",
+      title: "Parse a crash report: macOS/iOS .ips, Android tombstone, Windows WER (read-only)",
+      run: () => (store.showDump = true),
+    },
+    {
+      label: "Compare",
+      title: "Byte-compare two open documents and list the differing ranges (read-only)",
+      run: () => (store.showCompare = true),
+    },
+  ];
+
+  $effect(() => {
+    if (toolsOpen) {
+      queueMicrotask(() => toolsMenu?.querySelector("button")?.focus());
+    }
+  });
+
+  function toggleTools(): void {
+    toolsOpen = !toolsOpen;
+  }
+
+  function pickTool(i: number): void {
+    toolsOpen = false;
+    toolsTrigger?.focus();
+    toolItems[i].run();
+  }
+
+  function onToolKey(e: KeyboardEvent): void {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      toolsOpen = false;
+      toolsTrigger?.focus();
+      return;
+    }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const buttons = Array.from(toolsMenu?.querySelectorAll("button") ?? []);
+      if (buttons.length === 0) return;
+      const idx = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      const next =
+        e.key === "ArrowDown"
+          ? (idx + 1) % buttons.length
+          : (idx - 1 + buttons.length) % buttons.length;
+      buttons[next]?.focus();
+    }
+  }
+
+  function onWindowClick(e: MouseEvent): void {
+    if (toolsOpen && toolsRoot && !toolsRoot.contains(e.target as Node)) {
+      toolsOpen = false;
+    }
+  }
+
   async function onHash(ev: Event): Promise<void> {
     const sel = (ev.target as HTMLSelectElement).value;
     (ev.target as HTMLSelectElement).value = "";
@@ -23,6 +102,8 @@
     await A.preferencesChanged({ ...store.prefs, theme } as Preferences);
   }
 </script>
+
+<svelte:window onclick={onWindowClick} />
 
 <div class="toolbar">
   <button class="tb" onclick={() => A.openFile()} title="{store.t('menu.file.open')} (Ctrl+O)">
@@ -43,49 +124,40 @@
     {store.t("menu.file.saveAs")}
   </button>
   <span class="sep"></span>
-  <button class="tb" onclick={() => (store.showDisk = true)} title="Disk image browser">
-    Disk
-  </button>
-  <button class="tb" onclick={() => (store.showCarve = true)} title="Carve files out of an image">
-    Carve
-  </button>
-  <button class="tb" onclick={() => A.openBrowser()} title="Browser history, downloads, bookmarks">
-    Browser
-  </button>
-  <button class="tb" onclick={() => A.openMemory()} title="Memory capture & crash dump viewer (read-only)">
-    Memory
-  </button>
-  <button class="tb" onclick={() => (store.showCase = true)} title="Forensic case, evidence and report">
-    Case
-  </button>
-  <button
-    class="tb"
-    onclick={() => (store.showScript = true)}
-    title="Run a sandboxed automation script over the open documents"
-  >
-    Script
-  </button>
-  <button
-    class="tb"
-    onclick={() => (store.showTemplate = true)}
-    title="Overlay a structure template on the active document (read-only)"
-  >
-    Template
-  </button>
-  <button
-    class="tb"
-    onclick={() => (store.showDump = true)}
-    title="Parse a crash report: macOS/iOS .ips, Android tombstone, Windows WER (read-only)"
-  >
-    Crash report
-  </button>
-  <button
-    class="tb"
-    onclick={() => (store.showCompare = true)}
-    title="Byte-compare two open documents and list the differing ranges (read-only)"
-  >
-    Compare
-  </button>
+  <div class="tools" bind:this={toolsRoot}>
+    <button
+      class="tb"
+      class:active={toolsOpen}
+      bind:this={toolsTrigger}
+      aria-haspopup="menu"
+      aria-expanded={toolsOpen}
+      onclick={toggleTools}
+      title="Forensic tools & panels (Disk, Carve, Browser, Memory, Case, Script, Template, Crash report, Compare)"
+    >
+      Tools <span class="caret" class:up={toolsOpen}>▾</span>
+    </button>
+    {#if toolsOpen}
+      <div
+        class="menu"
+        role="menu"
+        aria-label="Forensic tools"
+        tabindex="-1"
+        bind:this={toolsMenu}
+        onkeydown={onToolKey}
+      >
+        {#each toolItems as item, i}
+          <button
+            class="mi"
+            role="menuitem"
+            title={item.title}
+            onclick={() => pickTool(i)}
+          >
+            {item.label}
+          </button>
+        {/each}
+      </div>
+    {/if}
+  </div>
   <span class="sep"></span>
   <button
     class="tb"
@@ -186,6 +258,59 @@
     height: 18px;
     background: var(--border);
     margin: 0 3px;
+  }
+
+  .tools {
+    position: relative;
+  }
+
+  .caret {
+    display: inline-block;
+    margin-left: 2px;
+    font-size: 9px;
+    transition: transform 0.12s ease;
+  }
+
+  .caret.up {
+    transform: rotate(180deg);
+  }
+
+  .menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 80;
+    min-width: 190px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  }
+
+  .menu:focus {
+    outline: none;
+  }
+
+  .mi {
+    padding: 6px 10px;
+    font-size: 12.5px;
+    text-align: left;
+    white-space: nowrap;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  .mi:hover,
+  .mi:focus-visible {
+    background: var(--accent-soft);
+    outline: none;
   }
 
   .lbl {

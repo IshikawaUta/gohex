@@ -25,6 +25,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   (offset | hex | text) for huge files, tabs, status bar, goto-offset,
   search/replace dialogs, undo/redo, save/save-as, drag & drop, context menus,
   keyboard shortcuts, theming.
+- **Tools dropdown**: the nine forensic panels (Disk, Carve, Browser,
+  Memory, Case, Script, Template, Crash report, Compare) collapsed into a
+  single keyboard-navigable Tools menu in the toolbar — arrow keys to move,
+  Escape or an outside click to dismiss, panel descriptions as tooltips.
 - **CLI companion** (`cmd/gohex-cli`): hash, search, info — read-only defaults.
 - **Disk images & partitions** (`internal/image`, `internal/disk`): magic-based
   detection of RAW, EWF/E01 and L01 sets (single- or multi-segment; segments
