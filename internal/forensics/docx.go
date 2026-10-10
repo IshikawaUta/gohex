@@ -17,9 +17,21 @@ import (
 // defaults — which keeps the generator dependency-free and the output
 // maximally portable.
 func WriteDOCX(w io.Writer, c *Case, generatedAt time.Time) error {
+	return writeDOCX(w, c, generatedAt, nil)
+}
+
+// WriteDOCXBates is WriteDOCX with Bates numbering applied.
+func WriteDOCXBates(w io.Writer, c *Case, generatedAt time.Time, opts BatesOptions) error {
+	return writeDOCX(w, c, generatedAt, &opts)
+}
+
+func writeDOCX(w io.Writer, c *Case, generatedAt time.Time, bates *BatesOptions) error {
 	doc, err := BuildReport(c, generatedAt)
 	if err != nil {
 		return err
+	}
+	if bates != nil {
+		ApplyBates(&doc, *bates)
 	}
 
 	var document bytes.Buffer
@@ -47,6 +59,9 @@ func WriteDOCX(w io.Writer, c *Case, generatedAt time.Time) error {
 	para(fmt.Sprintf("Generated: %s", doc.GeneratedAt.Format(time.RFC3339)), false)
 	para(fmt.Sprintf("Tool: %s %s (%s)", doc.Tool.Name, doc.Tool.Version, doc.Tool.GOOS), false)
 	para(fmt.Sprintf("Case checksum (SHA-256): %s", doc.Checksum), false)
+	if bates != nil && bates.Valid() {
+		para(fmt.Sprintf("Bates numbering: %s … (%s)", bates.Format(bates.Start), bates.Prefix), false)
+	}
 	para("", false)
 
 	heading("Case")
@@ -63,7 +78,11 @@ func WriteDOCX(w io.Writer, c *Case, generatedAt time.Time) error {
 		para("(none)", false)
 	}
 	for _, e := range doc.Evidence {
-		para(fmt.Sprintf("[%s] %s", e.Kind, e.Path), false)
+		head := fmt.Sprintf("[%s] %s", e.Kind, e.Path)
+		if e.BatesID != "" {
+			head = fmt.Sprintf("%s  [%s] %s", e.BatesID, e.Kind, e.Path)
+		}
+		para(head, false)
 		para(fmt.Sprintf("    size %d  sha256 %s", e.Size, e.SHA256), false)
 		para(fmt.Sprintf("    added %s  %s", fmtTime(e.AddedAt), orDash(e.Note)), false)
 	}
@@ -87,6 +106,10 @@ func WriteDOCX(w io.Writer, c *Case, generatedAt time.Time) error {
 		para("(none)", false)
 	}
 	for _, ev := range doc.Timeline {
+		if ev.BatesID != "" {
+			para(fmt.Sprintf("%s  %s  %s  %s", ev.BatesID, fmtTime(ev.Time), ev.Kind, ev.Summary), false)
+			continue
+		}
 		para(fmt.Sprintf("%s  %s  %s", fmtTime(ev.Time), ev.Kind, ev.Summary), false)
 	}
 

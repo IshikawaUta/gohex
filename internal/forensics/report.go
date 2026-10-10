@@ -110,6 +110,60 @@ func WriteJSON(w io.Writer, c *Case, generatedAt time.Time) error {
 	return err
 }
 
+// BatesOptions configures Bates numbering: a page/exhibit prefix plus
+// the starting sequence number and zero-pad width. Classic litigation
+// convention: PREFIX-000001, PREFIX-000002, …
+type BatesOptions struct {
+	Prefix string `json:"prefix"`
+	Start  int64  `json:"start"`
+	Width  int    `json:"width"`
+}
+
+// Valid reports whether the options are usable (non-empty prefix,
+// sane width).
+func (b BatesOptions) Valid() bool {
+	return b.Prefix != "" && b.Width >= 1 && b.Width <= 16
+}
+
+// Format renders one Bates number for sequence n.
+func (b BatesOptions) Format(n int64) string {
+	return fmt.Sprintf("%s-%0*d", b.Prefix, b.Width, n)
+}
+
+// ApplyBates stamps sequential Bates numbers onto the report's evidence
+// items first, then its timeline events — the exhibit-before-narrative
+// order litigation teams expect. The case file itself is untouched:
+// only the report copy carries the identifiers.
+func ApplyBates(doc *ReportDocument, opts BatesOptions) {
+	if doc == nil || !opts.Valid() {
+		return
+	}
+	n := opts.Start
+	for i := range doc.Evidence {
+		doc.Evidence[i].BatesID = opts.Format(n)
+		n++
+	}
+	for i := range doc.Timeline {
+		doc.Timeline[i].BatesID = opts.Format(n)
+		n++
+	}
+}
+
+// WriteJSONBates is WriteJSON with Bates numbering applied.
+func WriteJSONBates(w io.Writer, c *Case, generatedAt time.Time, opts BatesOptions) error {
+	doc, err := BuildReport(c, generatedAt)
+	if err != nil {
+		return err
+	}
+	ApplyBates(&doc, opts)
+	b, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(append(b, '\n'))
+	return err
+}
+
 // WriteHTML renders the report as a standalone HTML document.
 func WriteHTML(w io.Writer, c *Case, generatedAt time.Time) error {
 	doc, err := BuildReport(c, generatedAt)

@@ -73,6 +73,10 @@
     }),
   );
   let reportFormat = $state("html");
+  let batesOn = $state(false);
+  let batesPrefix = $state("CASE");
+  let batesStart = $state(1);
+  let batesWidth = $state(6);
 
   $effect(() => {
     if (!store.showCase || loaded) return;
@@ -341,7 +345,18 @@
     busy = true;
     error = "";
     try {
-      const r: SaveResult = await svc.CaseReport(reportFormat, path);
+      let r: SaveResult;
+      if (batesOn && reportFormat !== "html") {
+        r = await svc.CaseReportBates(
+          reportFormat,
+          path,
+          batesPrefix,
+          Number(batesStart) || 1,
+          Number(batesWidth) || 6,
+        );
+      } else {
+        r = await svc.CaseReport(reportFormat, path);
+      }
       flash(`Report written: ${r.bytesSaved} bytes → ${r.path} (sha256:${r.sha256})`);
     } catch (e) {
       error = errMsg(e);
@@ -472,6 +487,38 @@
           <option value="pdf">PDF</option>
           <option value="docx">DOCX</option>
         </select>
+        <label class="field" title="Bates numbering (evidence + timeline exhibits)">
+          <input type="checkbox" bind:checked={batesOn} disabled={reportFormat === "html"} />
+          Bates
+        </label>
+        {#if batesOn && reportFormat !== "html"}
+          <input
+            class="mono"
+            bind:value={batesPrefix}
+            size="8"
+            title="Bates prefix"
+            aria-label="Bates prefix"
+          />
+          <input
+            class="mono"
+            type="number"
+            min="0"
+            bind:value={batesStart}
+            size="6"
+            title="Bates start number"
+            aria-label="Bates start number"
+          />
+          <input
+            class="mono"
+            type="number"
+            min="1"
+            max="16"
+            bind:value={batesWidth}
+            size="4"
+            title="Bates zero-pad width"
+            aria-label="Bates zero-pad width"
+          />
+        {/if}
         <button onclick={() => void exportReport()} disabled={busy}>Export report…</button>
       </div>
 

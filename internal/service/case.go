@@ -350,6 +350,25 @@ func (a *App) CaseEventAdd(e forensics.Event) (CaseState, error) {
 // destination is hashed, so a report handed to someone else can be tied back
 // to this run, and the render is audited as an export.
 func (a *App) CaseReport(format, dstPath string) (SaveResult, error) {
+	return a.caseReport(format, dstPath, nil)
+}
+
+// CaseReportBates is CaseReport with Bates numbering applied to the
+// evidence and timeline entries. The HTML writer has no Bates support
+// (it is a screen document, not a print exhibit); requesting HTML with
+// Bates options is refused rather than silently ignored.
+func (a *App) CaseReportBates(format, dstPath, prefix string, start int64, width int) (SaveResult, error) {
+	if strings.EqualFold(strings.TrimSpace(format), caseFormatHTML) {
+		return SaveResult{}, errors.New("service: case report: Bates numbering unsupported for html (use json/pdf/docx)")
+	}
+	opts := forensics.BatesOptions{Prefix: strings.TrimSpace(prefix), Start: start, Width: width}
+	if !opts.Valid() {
+		return SaveResult{}, errors.New("service: case report: invalid Bates options (prefix required, width 1-16)")
+	}
+	return a.caseReport(format, dstPath, &opts)
+}
+
+func (a *App) caseReport(format, dstPath string, bates *forensics.BatesOptions) (SaveResult, error) {
 	format = strings.ToLower(strings.TrimSpace(format))
 	switch format {
 	case caseFormatHTML, caseFormatJSON, caseFormatPDF, caseFormatDOCX:
@@ -369,12 +388,18 @@ func (a *App) CaseReport(format, dstPath string) (SaveResult, error) {
 	var buf bytes.Buffer
 	generated := time.Now().UTC()
 	var err error
-	switch format {
-	case caseFormatJSON:
+	switch {
+	case format == caseFormatJSON && bates != nil:
+		err = forensics.WriteJSONBates(&buf, c, generated, *bates)
+	case format == caseFormatPDF && bates != nil:
+		err = forensics.WritePDFBates(&buf, c, generated, *bates)
+	case format == caseFormatDOCX && bates != nil:
+		err = forensics.WriteDOCXBates(&buf, c, generated, *bates)
+	case format == caseFormatJSON:
 		err = forensics.WriteJSON(&buf, c, generated)
-	case caseFormatPDF:
+	case format == caseFormatPDF:
 		err = forensics.WritePDF(&buf, c, generated)
-	case caseFormatDOCX:
+	case format == caseFormatDOCX:
 		err = forensics.WriteDOCX(&buf, c, generated)
 	default:
 		err = forensics.WriteHTML(&buf, c, generated)

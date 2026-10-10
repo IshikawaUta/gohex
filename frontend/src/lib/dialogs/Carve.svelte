@@ -15,6 +15,7 @@
   let sel = $state(-1);
   let busy = $state(false);
   let error = $state("");
+  let preview = $state("");
 
   let types = $derived(
     Object.entries(chosen)
@@ -23,6 +24,35 @@
   );
   let selected = $derived(sel >= 0 && sel < results.length ? results[sel] : null);
   let allOn = $derived(specs.length > 0 && types.length === specs.length);
+  let selectedIsImage = $derived(
+    !!selected && [".jpg", ".png", ".gif", ".bmp", ".webp"].includes(selected.ext),
+  );
+
+  $effect(() => {
+    void loadPreview();
+  });
+
+  async function loadPreview(): Promise<void> {
+    preview = "";
+    if (!path || !selectedIsImage || !selected) return;
+    try {
+      const b64 = await svc.CarvePreview(path, selected);
+      if (!b64) return;
+      const mime =
+        selected.ext === ".png"
+          ? "image/png"
+          : selected.ext === ".gif"
+            ? "image/gif"
+            : selected.ext === ".bmp"
+              ? "image/bmp"
+              : selected.ext === ".webp"
+                ? "image/webp"
+                : "image/jpeg";
+      preview = `data:${mime};base64,${b64}`;
+    } catch {
+      /* a broken preview must never block the results table */
+    }
+  }
 
   $effect(() => {
     if (!store.showCarve || specs.length > 0) return;
@@ -246,6 +276,16 @@
       </button>
     </div>
 
+    {#if preview}
+      <figure class="gallery">
+        <img src={preview} alt={`Preview of ${selected?.display} at ${selected?.offset}`} />
+        <figcaption>
+          {selected?.display} @ {fmtOffset(selected?.offset ?? 0)} — preview only, capped at 1 MiB;
+          use Export for the full, hashed copy.
+        </figcaption>
+      </figure>
+    {/if}
+
     {#if error}<p class="error">{error}</p>{/if}
   </div>
 </div>
@@ -269,6 +309,25 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 20px 24px;
+  }
+
+  .gallery {
+    margin: 12px 0 0;
+    text-align: center;
+  }
+
+  .gallery img {
+    max-width: 100%;
+    max-height: 260px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-app, #111);
+  }
+
+  .gallery figcaption {
+    margin-top: 6px;
+    font-size: 11.5px;
+    opacity: 0.75;
   }
 
   .head {

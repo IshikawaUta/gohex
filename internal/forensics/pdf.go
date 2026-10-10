@@ -95,9 +95,22 @@ func pdfEscape(s string) string {
 // WritePDF renders the report as a plain-text PDF using only the base-14
 // Helvetica font, so the output opens anywhere without embedding fonts.
 func WritePDF(w io.Writer, c *Case, generatedAt time.Time) error {
+	return writePDF(w, c, generatedAt, nil)
+}
+
+// WritePDFBates is WritePDF with Bates numbering applied to evidence
+// and timeline entries.
+func WritePDFBates(w io.Writer, c *Case, generatedAt time.Time, opts BatesOptions) error {
+	return writePDF(w, c, generatedAt, &opts)
+}
+
+func writePDF(w io.Writer, c *Case, generatedAt time.Time, bates *BatesOptions) error {
 	doc, err := BuildReport(c, generatedAt)
 	if err != nil {
 		return err
+	}
+	if bates != nil {
+		ApplyBates(&doc, *bates)
 	}
 	pw := newPDFWriter()
 
@@ -106,6 +119,9 @@ func WritePDF(w io.Writer, c *Case, generatedAt time.Time) error {
 	pw.line(fmt.Sprintf("Generated: %s", doc.GeneratedAt.Format(time.RFC3339)), 10, 4)
 	pw.line(fmt.Sprintf("Tool: %s %s (%s)", doc.Tool.Name, doc.Tool.Version, doc.Tool.GOOS), 10, 4)
 	pw.line(fmt.Sprintf("Case checksum (SHA-256): %s", doc.Checksum), 8, 4)
+	if bates != nil && bates.Valid() {
+		pw.line(fmt.Sprintf("Bates numbering: %s … (%s)", bates.Format(bates.Start), bates.Prefix), 8, 2)
+	}
 	pw.line("", 10, 10)
 
 	pw.line("Case", 14, 8)
@@ -121,7 +137,11 @@ func WritePDF(w io.Writer, c *Case, generatedAt time.Time) error {
 		pw.line("  (none)", 10, 2)
 	}
 	for _, e := range doc.Evidence {
-		pw.line(fmt.Sprintf("  [%s] %s", e.Kind, e.Path), 10, 2)
+		head := fmt.Sprintf("  [%s] %s", e.Kind, e.Path)
+		if e.BatesID != "" {
+			head = fmt.Sprintf("  %s  [%s] %s", e.BatesID, e.Kind, e.Path)
+		}
+		pw.line(head, 10, 2)
 		pw.line(fmt.Sprintf("      size %d  sha256 %s", e.Size, e.SHA256), 8, 2)
 		pw.line(fmt.Sprintf("      added %s  %s", fmtTime(e.AddedAt), orDash(e.Note)), 8, 2)
 	}
@@ -145,6 +165,10 @@ func WritePDF(w io.Writer, c *Case, generatedAt time.Time) error {
 		pw.line("  (none)", 10, 2)
 	}
 	for _, ev := range doc.Timeline {
+		if ev.BatesID != "" {
+			pw.line(fmt.Sprintf("  %s  %s  %-9s  %s", ev.BatesID, fmtTime(ev.Time), ev.Kind, ev.Summary), 9, 1)
+			continue
+		}
 		pw.line(fmt.Sprintf("  %s  %-9s  %s", fmtTime(ev.Time), ev.Kind, ev.Summary), 9, 1)
 	}
 

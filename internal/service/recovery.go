@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	stdhex "encoding/hex"
 	"errors"
 	"fmt"
@@ -151,4 +153,52 @@ func (a *App) CarveExport(path string, item recovery.Carved, dstPath string) (Sa
 		},
 	})
 	return SaveResult{Path: dstPath, BytesSaved: written, Mode: "carve", SHA256: sum}, nil
+}
+
+// carvePreviewMax caps how many bytes a gallery thumbnail may pull from
+// the evidence image — enough for a JPEG/PNG preview, never a full copy.
+const carvePreviewMax = 1 << 20 // 1 MiB
+
+// CarvePreview returns the first carvePreviewMax bytes of a recovered
+// object as a base64 payload for the frontend gallery grid. It is a
+// read-only convenience for rendering: nothing is written, and the
+// caller still uses CarveExport for the real, hashed copy.
+func (a *App) CarvePreview(path string, item recovery.Carved) (string, error) {
+	abs := absPath(path)
+	if abs == "" {
+		return "", errors.New("service: carve preview: empty path")
+	}
+	if item.Offset < 0 || item.Length <= 0 {
+		return "", fmt.Errorf("service: carve preview: invalid range %#x+%#x", item.Offset, item.Length)
+	}
+	img, err := image.Open(abs)
+	if err != nil {
+		return "", err
+	}
+	defer img.Close()
+
+	n := item.Length
+	if n > carvePreviewMax {
+		n = carvePreviewMax
+	}
+	saved := item
+	saved.Length = n
+	var buf bytes.Buffer
+	written, err := recovery.Extract(img, saved, &buf)
+	if err != nil {
+		return "", fmt.Errorf("service: carve preview: %w", err)
+	}
+	_ = written
+	_ = a.log.Log(audit.Event{
+		Action: audit.ActionSearch,
+		Target: abs,
+		Result: audit.ResultOK,
+		Detail: map[string]string{
+			"op":     "carve-preview",
+			"type":   item.Type,
+			"offset": fmt.Sprintf("%d", item.Offset),
+			"bytes":  fmt.Sprintf("%d", n),
+		},
+	})
+	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }

@@ -1,8 +1,10 @@
 package forensics
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -167,6 +169,102 @@ func TestWriteJSON(t *testing.T) {
 
 	if err := WriteJSON(&buf, nil, time.Now()); err == nil {
 		t.Error("wrote a report from no case")
+	}
+}
+
+func TestApplyBates(t *testing.T) {
+	c := sampleCase(t)
+	doc, err := BuildReport(c, time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := BatesOptions{Prefix: "EXH", Start: 1, Width: 4}
+	if !opts.Valid() {
+		t.Fatal("EXH/1/4 should be valid")
+	}
+	if got := opts.Format(7); got != "EXH-0007" {
+		t.Errorf("Format(7) = %q", got)
+	}
+	if (BatesOptions{}).Valid() || (BatesOptions{Prefix: "X", Width: 99}).Valid() {
+		t.Error("invalid options accepted")
+	}
+
+	ApplyBates(&doc, opts)
+	if len(doc.Evidence) == 0 || doc.Evidence[0].BatesID != "EXH-0001" {
+		t.Errorf("first evidence BatesID = %q", doc.Evidence[0].BatesID)
+	}
+	if doc.Timeline[0].BatesID != "EXH-0002" || doc.Timeline[2].BatesID != "EXH-0004" {
+		t.Errorf("timeline BatesIDs = %q..%q", doc.Timeline[0].BatesID, doc.Timeline[2].BatesID)
+	}
+	// The case file must stay unnumbered: only the report copy is stamped.
+	if c.Evidence[0].BatesID != "" || c.Events[0].BatesID != "" {
+		t.Error("ApplyBates mutated the case file")
+	}
+
+	// Zero-value options are a no-op, not a panic.
+	ApplyBates(&doc, BatesOptions{})
+	if doc.Evidence[0].BatesID == "" {
+		t.Error("valid numbering was clobbered by a no-op ApplyBates")
+	}
+}
+
+func TestWriteBatesVariants(t *testing.T) {
+	c := sampleCase(t)
+	gen := time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC)
+	opts := BatesOptions{Prefix: "CASE-A", Start: 100, Width: 6}
+
+	var buf bytes.Buffer
+	if err := WriteJSONBates(&buf, c, gen, opts); err != nil {
+		t.Fatalf("WriteJSONBates: %v", err)
+	}
+	var doc ReportDocument
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("bates JSON invalid: %v", err)
+	}
+	if doc.Evidence[0].BatesID != "CASE-A-000100" {
+		t.Errorf("JSON evidence BatesID = %q", doc.Evidence[0].BatesID)
+	}
+	if doc.Timeline[0].BatesID != "CASE-A-000101" {
+		t.Errorf("JSON timeline BatesID = %q", doc.Timeline[0].BatesID)
+	}
+
+	buf.Reset()
+	if err := WritePDFBates(&buf, c, gen, opts); err != nil {
+		t.Fatalf("WritePDFBates: %v", err)
+	}
+	if !bytes.HasPrefix(buf.Bytes(), []byte("%PDF")) {
+		t.Error("PDFBates output is not a PDF")
+	}
+	if !bytes.Contains(buf.Bytes(), []byte("CASE-A-000100")) {
+		t.Error("PDF is missing the Bates identifier")
+	}
+
+	buf.Reset()
+	if err := WriteDOCXBates(&buf, c, gen, opts); err != nil {
+		t.Fatalf("WriteDOCXBates: %v", err)
+	}
+	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatalf("DOCX is not a zip: %v", err)
+	}
+	found := false
+	for _, f := range zr.File {
+		if f.Name != "word/document.xml" {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		found = bytes.Contains(body, []byte("CASE-A-000100"))
+	}
+	if !found {
+		t.Error("DOCX document.xml is missing the Bates identifier")
 	}
 }
 

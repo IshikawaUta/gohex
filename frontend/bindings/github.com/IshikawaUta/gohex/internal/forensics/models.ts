@@ -28,6 +28,11 @@ export interface Event {
     "kind": string;
     "summary": string;
     "evidenceId"?: string;
+
+    /**
+     * BatesID is stamped by ApplyBates on report copies only.
+     */
+    "batesId"?: string;
 }
 
 /**
@@ -43,6 +48,12 @@ export interface Evidence {
     "sha256": string;
     "addedAt": string;
     "note"?: string;
+
+    /**
+     * BatesID is stamped by ApplyBates on report copies only; it is
+     * never persisted into the case file.
+     */
+    "batesId"?: string;
 }
 
 /**

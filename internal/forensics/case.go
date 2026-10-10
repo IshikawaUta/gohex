@@ -107,6 +107,9 @@ type Evidence struct {
 	SHA256  string    `json:"sha256"`
 	AddedAt time.Time `json:"addedAt"`
 	Note    string    `json:"note,omitempty"`
+	// BatesID is stamped by ApplyBates on report copies only; it is
+	// never persisted into the case file.
+	BatesID string `json:"batesId,omitempty"`
 }
 
 // Finding is the examiner's conclusion about one thing.
@@ -127,6 +130,8 @@ type Event struct {
 	Kind       string    `json:"kind"`
 	Summary    string    `json:"summary"`
 	EvidenceID string    `json:"evidenceId,omitempty"`
+	// BatesID is stamped by ApplyBates on report copies only.
+	BatesID string `json:"batesId,omitempty"`
 }
 
 // Case is the case file.

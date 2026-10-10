@@ -101,6 +101,16 @@ export function CarveExport(path: string, item: recovery$0.Carved, dstPath: stri
 }
 
 /**
+ * CarvePreview returns the first carvePreviewMax bytes of a recovered
+ * object as a base64 payload for the frontend gallery grid. It is a
+ * read-only convenience for rendering: nothing is written, and the
+ * caller still uses CarveExport for the real, hashed copy.
+ */
+export function CarvePreview(path: string, item: recovery$0.Carved): $CancellablePromise<string> {
+    return $Call.ByID(1812526455, path, item);
+}
+
+/**
  * CarveScan looks for embedded files inside path (or inside [from, to) of it
  * when either bound is set) and returns their offsets and lengths. Evidence is
  * only read: nothing is written back to the source.
@@ -185,6 +195,16 @@ export function CaseOpen(path: string): $CancellablePromise<$models.CaseState> {
  */
 export function CaseReport(format: string, dstPath: string): $CancellablePromise<$models.SaveResult> {
     return $Call.ByID(493420600, format, dstPath);
+}
+
+/**
+ * CaseReportBates is CaseReport with Bates numbering applied to the
+ * evidence and timeline entries. The HTML writer has no Bates support
+ * (it is a screen document, not a print exhibit); requesting HTML with
+ * Bates options is refused rather than silently ignored.
+ */
+export function CaseReportBates(format: string, dstPath: string, prefix: string, start: number, width: number): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(627160699, format, dstPath, prefix, start, width);
 }
 
 /**
