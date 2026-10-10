@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { store } from "./lib/state.svelte";
+  import { store, flash } from "./lib/state.svelte";
   import { Events, svc } from "./lib/api";
   import * as A from "./lib/actions";
+  import * as NH from "./lib/navhist";
   import { findAction } from "./lib/keymap";
   import { disclaimerAccepted, acceptDisclaimer } from "./lib/disclaimer";
   import Toolbar from "./lib/Toolbar.svelte";
@@ -25,6 +26,7 @@
   import Compare from "./lib/dialogs/Compare.svelte";
   import Utilities from "./lib/dialogs/Utilities.svelte";
   import Raid from "./lib/dialogs/Raid.svelte";
+  import Bookmarks from "./lib/dialogs/Bookmarks.svelte";
 
   let doc = $derived(store.active);
   let ready = $state(false);
@@ -96,6 +98,32 @@
     );
   }
 
+  // Drag & drop: dropping evidence files onto the window opens them.
+  // WebKitGTK exposes the absolute path as File.path; when absent the
+  // file is skipped with a message rather than half-opened by name.
+  function onDragOver(e: DragEvent): void {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  }
+
+  async function onDrop(e: DragEvent): Promise<void> {
+    e.preventDefault();
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    let opened = 0;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const p = (f as File & { path?: string }).path;
+      if (!p) {
+        flash("Drop skipped: the platform did not provide a file path");
+        continue;
+      }
+      await A.openFile(p);
+      opened++;
+    }
+    if (opened > 0) flash(`Opened ${opened} dropped file${opened === 1 ? "" : "s"}`);
+  }
+
   function onGlobalKey(e: KeyboardEvent): void {
     if (e.key === "Escape") {
       if (
@@ -111,7 +139,8 @@
         store.showDump ||
         store.showCompare ||
         store.showUtilities ||
-        store.showRaid
+        store.showRaid ||
+        store.showBookmarks
       ) {
         store.showPrefs = false;
         store.showAbout = false;
@@ -126,6 +155,7 @@
         store.showCompare = false;
         store.showUtilities = false;
         store.showRaid = false;
+        store.showBookmarks = false;
         return;
       }
       if (store.showEthics) {
@@ -190,6 +220,36 @@
         e.preventDefault();
         document.querySelector<HTMLButtonElement>(".offset-btn")?.click();
         break;
+      case "goto.back": {
+        if (!doc) return;
+        e.preventDefault();
+        const offBack = NH.back(doc.id);
+        if (offBack !== null) {
+          store.revealFn?.(offBack);
+          store.navGen++;
+        }
+        break;
+      }
+      case "goto.forward": {
+        if (!doc) return;
+        e.preventDefault();
+        const offFwd = NH.forward(doc.id);
+        if (offFwd !== null) {
+          store.revealFn?.(offFwd);
+          store.navGen++;
+        }
+        break;
+      }
+      case "edit.bookmark":
+        if (inInput || !doc) return;
+        e.preventDefault();
+        document.querySelector<HTMLButtonElement>(".star")?.click();
+        break;
+      case "view.bookmarks":
+        if (!doc) return;
+        e.preventDefault();
+        store.showBookmarks = true;
+        break;
       case "preferences.open":
         e.preventDefault();
         store.showPrefs = true;
@@ -202,7 +262,7 @@
   }
 </script>
 
-<div class="app">
+<div class="app" role="application" aria-label="GoHex hex editor" ondragover={onDragOver} ondrop={(e) => void onDrop(e)}>
   <Toolbar />
   <TabBar />
   {#if store.findOpen && doc}
@@ -297,6 +357,9 @@
   {/if}
   {#if store.showRaid}
     <Raid />
+  {/if}
+  {#if store.showBookmarks}
+    <Bookmarks />
   {/if}
 </div>
 

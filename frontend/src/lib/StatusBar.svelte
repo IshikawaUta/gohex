@@ -1,11 +1,27 @@
 <script lang="ts">
-  import { store } from "./state.svelte";
+  import { store, flash } from "./state.svelte";
   import { fmtOffsetHex, fmtSize } from "./format";
   import * as A from "./actions";
-  
+  import * as BM from "./bookmarks";
+  import * as NH from "./navhist";
+
   let doc = $derived(store.active);
   let editing = $state(false);
   let expr = $state("");
+
+  // navGen tracks history mutations so the buttons re-render.
+  let canBack = $derived.by(() => {
+    void store.navGen;
+    return !!doc && NH.canBack(doc.id);
+  });
+  let canFwd = $derived.by(() => {
+    void store.navGen;
+    return !!doc && NH.canForward(doc.id);
+  });
+  let starred = $derived.by(() => {
+    void store.navGen;
+    return !!doc && doc.path !== "" && BM.hasBookmark(doc.path, store.cursor);
+  });
 
   function startEdit(): void {
     expr = fmtOffsetHex(store.cursor);
@@ -27,12 +43,63 @@
     store.copyFn?.("offset");
   }
 
+  function goBack(): void {
+    if (!doc) return;
+    const off = NH.back(doc.id);
+    if (off !== null) {
+      store.revealFn?.(off);
+      store.navGen++;
+    }
+  }
+
+  function goForward(): void {
+    if (!doc) return;
+    const off = NH.forward(doc.id);
+    if (off !== null) {
+      store.revealFn?.(off);
+      store.navGen++;
+    }
+  }
+
+  function toggleBookmark(): void {
+    if (!doc) return;
+    if (!doc.path) {
+      flash("Save the file first — bookmarks are keyed by path");
+      return;
+    }
+    if (BM.hasBookmark(doc.path, store.cursor)) {
+      BM.removeBookmark(doc.path, store.cursor);
+      flash(`Removed bookmark at ${fmtOffsetHex(store.cursor)}`);
+    } else if (BM.addBookmark(doc.path, store.cursor)) {
+      flash(`Bookmarked ${fmtOffsetHex(store.cursor)}`);
+    } else {
+      flash("Bookmark already exists here");
+    }
+    store.navGen++;
+  }
+
   let selLen = $derived(Math.max(0, store.selEnd - store.selStart));
 </script>
 
 <div class="statusbar">
   {#if doc}
     <div class="group goto">
+      <button
+        class="mini nav"
+        onclick={goBack}
+        disabled={!canBack}
+        title="Back (Alt+Left)"
+      >
+        ←
+      </button>
+      <button
+        class="mini nav"
+        onclick={goForward}
+        disabled={!canFwd}
+        title="Forward (Alt+Right)"
+      >
+        →
+      </button>
       {#if editing}
         <input
           class="goto-input"
@@ -62,6 +129,21 @@
         —
       {/if}
       <button class="mini" onclick={copyOffset} title="Copy offset">⧉</button>
+      <button
+        class="mini star"
+        class:on={starred}
+        onclick={toggleBookmark}
+        title="Toggle bookmark (Ctrl+D)"
+      >
+        {starred ? "★" : "☆"}
+      </button>
+      <button
+        class="mini"
+        onclick={() => (store.showBookmarks = true)}
+        title="All bookmarks (Ctrl+Shift+B)"
+      >
+        ☰
+      </button>
     </div>
 
     <div class="group">
@@ -156,6 +238,15 @@
     background: transparent;
     padding: 0 3px;
     color: var(--text-dim);
+  }
+
+  .mini.nav:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  .mini.star.on {
+    color: var(--accent);
   }
 
   .badge {

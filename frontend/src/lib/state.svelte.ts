@@ -30,6 +30,10 @@ class Store {
   showCompare = $state(false);
   showUtilities = $state(false);
   showRaid = $state(false);
+  showBookmarks = $state(false);
+  // Bumped when the navigation history state may have changed, so
+  // back/forward buttons re-derive their disabled state.
+  navGen = $state(0);
   findOpen = $state(false);
   pendingNibble = $state(-1);
   revealFn: ((off: number, selLen?: number) => void) | null = null;

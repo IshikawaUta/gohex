@@ -1,6 +1,7 @@
 import { store, flash } from "./state.svelte";
 import { svc, models, Dialogs, errMsg } from "./api";
 import { ethicsAccepted } from "./ethics";
+import * as NH from "./navhist";
 import type { Preferences } from "../../bindings/github.com/IshikawaUta/gohex/internal/config/models";
 
 export async function refreshDocs(): Promise<void> {
@@ -181,6 +182,8 @@ export async function gotoOffset(expr: string): Promise<void> {
     store.cursor = off;
     store.selStart = off;
     store.selEnd = off;
+    NH.push(doc.id, off);
+    store.navGen++;
     requestAnimationFrame(() => store.revealFn?.(off));
   } catch (e) {
     flash(errMsg(e));
