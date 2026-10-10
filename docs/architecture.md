@@ -417,7 +417,7 @@ re-render. The store is the only shared mutable state.
 | 2 ✅ | Disk & image reader (RAW/E01/VHD/VMDK/QCOW2/VHDX), partition tables, read-only file-system viewers (FAT/NTFS/ext/exFAT/ISO) + service APIs + GUI disk panel. HFS+/APFS moved to stage 3 | `disk`, `image`, `fs`, `service` |
 | 3 ✅ | Carving, browser artifacts, case management & reports, HFS+/APFS file systems, multi-segment E01/L01 image sets and crash-report parsers (`.ips`, tombstone, WER) | `recovery`, `browser`, `forensics`, `dump` |
 | 4 ✅ | Memory viewer & crash-dump analyzer: LiME, AVML (Snappy), raw, ELF core, Windows minidump and Windows 64-bit dumps (complete + bitmap) | `memory` |
-| 5 ◐ | Scripting engine, structure templates, opt-in update check and the configurable keymap engine shipped (all with GUI surfaces). Utilities, packaging and signing remain | `script`, `template`, `update`, `keymap` |
+| 5 ✅ | Scripting engine, structure templates, opt-in update check, configurable keymap, crash-report parsers, binary-compare utility, release packaging (deb/rpm/AppImage/NSIS) and signing (SHA-256 checksums + optional detached GPG signature) | `script`, `template`, `update`, `keymap`, `dump`, `compare` |
 
 Stage 3 ships `internal/recovery`, `internal/browser`, `internal/forensics`
 and `internal/dump`. `internal/dump` holds the text/JSON crash reports that
@@ -449,9 +449,15 @@ all-or-nothing apply and a GUI Template panel. The opt-in update check
 (`internal/update`) brought soft failures and audited probes with no
 outbound connection unless `GOHEX_UPDATE_CHECK=1`, and the keymap engine
 (`internal/keymap`) made the shortcut map a validated, editable
-configuration instead of hard-coded key handlers. The remaining stage-5
-scope — utilities, packaging and signing — is release engineering on top
-of the shipped engines.
+configuration instead of hard-coded key handlers. The final stage-5 slice
+closed the roadmap: the crash-report parsers (`internal/dump`) finished
+the last stage-3 placeholder, the binary-compare engine
+(`internal/compare`) shipped as the read-only utility, and release
+engineering landed — `release.yml` cross-compiles the CLI, packages
+deb/rpm/AppImage (NSIS and the macOS `.app` best-effort), enforces the
+version stamp against the tag, writes SHA-256 checksums and attaches a
+detached GPG signature when the repository secrets are configured
+(process details in [release.md](release.md)).
 Non-goal forever: anti-forensic features, credential extraction, stealth —
 see [legal.md](legal.md).
 
@@ -462,3 +468,7 @@ see [legal.md](legal.md).
 Bindings are generated from the service API; the frontend must treat every
 generated field as possibly-null (they mirror Go slices/pointers) and import
 types with `import type` where a value is not needed.
+Releases run `.github/workflows/release.yml` on a `v*` tag: CLI
+cross-compile matrix, GUI packaging per OS, version-stamp verification,
+`SHA256SUMS.txt` (+ optional GPG signature) and the GitHub release —
+see [release.md](release.md).

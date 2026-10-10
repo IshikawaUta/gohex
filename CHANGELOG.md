@@ -136,6 +136,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   exact equal/differing counts and the first differing offset. Size
   mismatches contribute one trailing range. Exposed as
   `CompareDocuments` with a GUI Compare panel.
+- **Release packaging & signing** (`.github/workflows/release.yml`):
+  tag-driven pipeline that cross-compiles `gohex-cli` for linux/windows/
+  darwin × amd64/arm64, builds and packages the Linux GUI (deb, rpm,
+  AppImage — verified locally) with best-effort NSIS and macOS `.app`
+  jobs, enforces `pkg/version` + `build/config.yml` against the tag,
+  writes `SHA256SUMS.txt` and attaches a detached armored GPG signature
+  when the `GPG_PRIVATE_KEY`/`GPG_PASSPHRASE` repository secrets are
+  configured, then creates the GitHub release. Fixed an invalid
+  `runner`-context expression in the CI Windows build shell that
+  actionlint flagged (the step was silently failing behind
+  `continue-on-error`).
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

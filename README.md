@@ -15,10 +15,10 @@
 
 ## Status
 
-Stages 1–4 are done (hex editor core + GUI shell, disk images & partitions,
-recovery/browser/case tooling, memory forensics). Stage 5 has shipped its
-engines (scripting, templates, update check, keymap); utilities, packaging
-and signing remain. The full roadmap lives in [docs/architecture.md](docs/architecture.md).
+Stages 1–5 are done (hex editor core + GUI shell, disk images & partitions,
+recovery/browser/case tooling, memory forensics, and the stage-5 engines:
+scripting, templates, update check, keymap, crash reports, binary compare,
+packaging & signing). The full roadmap lives in [docs/architecture.md](docs/architecture.md).
 
 | Area | Status |
 |---|---|
@@ -37,7 +37,7 @@ and signing remain. The full roadmap lives in [docs/architecture.md](docs/archit
 | Update check (opt-in GitHub releases probe) | ✅ stage 5 |
 | Configurable keymap engine (validated shortcuts, Preferences editor) | ✅ stage 5 |
 | Companion CLI `gohex-cli` (read-only hash, info, search) | ✅ stage 5 |
-| Utilities, packaging, signing | 🔜 stage 5 |
+| Utilities, packaging, signing | ✅ stage 5 |
 
 ## Build & run
 

@@ -164,7 +164,15 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
 
       - name: Build production binary
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          wails3 build
+
+      - name: Build production binary (Windows / MSYS2)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: |
           export PATH="$PATH:$(go env GOPATH)/bin"
           wails3 build
