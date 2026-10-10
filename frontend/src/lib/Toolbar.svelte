@@ -49,6 +49,11 @@
       title: "Entropy, calculator, regex, strings, split/join, shred, generators, timestamps, PNG export",
       run: () => (store.showUtilities = true),
     },
+    {
+      label: "RAID",
+      title: "Assemble RAID 0/1/5/6 members into a read-only logical volume (degraded reads supported)",
+      run: () => (store.showRaid = true),
+    },
   ];
 
   $effect(() => {

@@ -564,6 +564,17 @@ export function ProbeImage(path: string): $CancellablePromise<$models.ImageInfo>
 }
 
 /**
+ * RaidOpen assembles the listed member files into a read-only logical
+ * volume and opens it as a hex document. level is "0"/"1"/"5"/"6";
+ * stripeSize is the stripe unit in bytes (a power of two); missing
+ * lists member indexes to treat as absent (degraded simulation). The
+ * members are opened read-only and audited; nothing is ever written.
+ */
+export function RaidOpen(paths: string[] | null, level: string, stripeSize: number, missing: number[] | null): $CancellablePromise<$models.DocInfo> {
+    return $Call.ByID(2959088794, paths, level, stripeSize, missing);
+}
+
+/**
  * RandomHex returns n random bytes as uppercase hex.
  */
 export function RandomHex(n: number): $CancellablePromise<string> {

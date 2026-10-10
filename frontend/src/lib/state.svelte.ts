@@ -29,6 +29,7 @@ class Store {
   showDump = $state(false);
   showCompare = $state(false);
   showUtilities = $state(false);
+  showRaid = $state(false);
   findOpen = $state(false);
   pendingNibble = $state(-1);
   revealFn: ((off: number, selLen?: number) => void) | null = null;

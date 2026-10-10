@@ -24,6 +24,7 @@
   import Dump from "./lib/dialogs/Dump.svelte";
   import Compare from "./lib/dialogs/Compare.svelte";
   import Utilities from "./lib/dialogs/Utilities.svelte";
+  import Raid from "./lib/dialogs/Raid.svelte";
 
   let doc = $derived(store.active);
   let ready = $state(false);
@@ -109,7 +110,8 @@
         store.showTemplate ||
         store.showDump ||
         store.showCompare ||
-        store.showUtilities
+        store.showUtilities ||
+        store.showRaid
       ) {
         store.showPrefs = false;
         store.showAbout = false;
@@ -123,6 +125,7 @@
         store.showDump = false;
         store.showCompare = false;
         store.showUtilities = false;
+        store.showRaid = false;
         return;
       }
       if (store.showEthics) {
@@ -291,6 +294,9 @@
   {/if}
   {#if store.showUtilities}
     <Utilities />
+  {/if}
+  {#if store.showRaid}
+    <Raid />
   {/if}
 </div>
 
