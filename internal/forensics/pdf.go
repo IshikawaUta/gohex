@@ -17,9 +17,9 @@ type pdfPage struct {
 }
 
 type pdfLine struct {
-	text  string
-	size  float64
-	gap   float64 // extra vertical space before this line
+	text string
+	size float64
+	gap  float64 // extra vertical space before this line
 }
 
 // pdfWriter accumulates pages and emits a complete PDF 1.4 document.
@@ -180,7 +180,7 @@ func writePDFFile(w io.Writer, pw *pdfWriter) error {
 	fontObjID := 3 + 2*nPages
 
 	// Reserve the ids we know up front.
-kids := make([]string, nPages)
+	kids := make([]string, nPages)
 	for i := range kids {
 		kids[i] = fmt.Sprintf("%d 0 R", 3+2*i)
 	}

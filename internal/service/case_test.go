@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/IshikawaUta/gohex/internal/forensics"
 )
@@ -531,5 +532,96 @@ func TestCaseReportPDFAndDOCX(t *testing.T) {
 				t.Error("document.xml missing case name")
 			}
 		}
+	}
+}
+
+func TestTimelineQueryAndExport(t *testing.T) {
+	app := newTestApp(t)
+	if _, err := app.CaseNew("TL case", "A", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.CaseEventAdd(forensics.Event{
+		Time: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), Kind: forensics.EventManual,
+		Summary: "alpha, with comma",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.CaseEventAdd(forensics.Event{
+		Time: time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC), Kind: "visit",
+		Summary: "beta visit", Source: "browser:Chrome",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// Undated event must survive a date-filtered query? No: a date
+	// filter excludes undated entries, but a kind-only query keeps them.
+	if _, err := app.CaseEventAdd(forensics.Event{Kind: "visit", Summary: "undated"}); err != nil {
+		t.Fatal(err)
+	}
+
+	all, err := app.TimelineQuery(TimelineFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 3 {
+		t.Fatalf("all = %d events", len(all))
+	}
+	visits, err := app.TimelineQuery(TimelineFilter{Kind: "visit"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(visits) != 2 {
+		t.Errorf("kind filter: got %d", len(visits))
+	}
+	ranged, err := app.TimelineQuery(TimelineFilter{
+		From: "2026-01-01T00:00:00Z", To: "2026-02-01T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ranged) != 1 || ranged[0].Summary != "alpha, with comma" {
+		t.Errorf("date filter: %+v", ranged)
+	}
+	found, err := app.TimelineQuery(TimelineFilter{Search: "BETA"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(found) != 1 {
+		t.Errorf("search filter: got %d", len(found))
+	}
+
+	// Export CSV with the comma-bearing summary must quote correctly.
+	csvDst := filepath.Join(t.TempDir(), "tl.csv")
+	res, err := app.TimelineExport("csv", csvDst, TimelineFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.BytesSaved == 0 {
+		t.Fatal("empty csv")
+	}
+	body, _ := os.ReadFile(csvDst)
+	if !strings.Contains(string(body), `"alpha, with comma"`) {
+		t.Errorf("csv not quoted:\n%s", body)
+	}
+	if !strings.HasPrefix(string(body), "time,kind,source,summary,evidenceId") {
+		t.Error("csv missing header")
+	}
+	// Second export to the same path must refuse (no overwrite).
+	if _, err := app.TimelineExport("csv", csvDst, TimelineFilter{}); err == nil {
+		t.Error("overwrote an existing timeline export")
+	}
+
+	jsonDst := filepath.Join(t.TempDir(), "tl.json")
+	if _, err := app.TimelineExport("json", jsonDst, TimelineFilter{Kind: "visit"}); err != nil {
+		t.Fatal(err)
+	}
+	jbody, _ := os.ReadFile(jsonDst)
+	if !strings.Contains(string(jbody), "beta visit") {
+		t.Errorf("json missing event:\n%s", jbody)
+	}
+	if strings.Contains(string(jbody), "alpha, with comma") {
+		t.Error("json ignored the filter")
+	}
+	if _, err := app.TimelineExport("xml", filepath.Join(t.TempDir(), "x.xml"), TimelineFilter{}); err == nil {
+		t.Error("accepted an unknown timeline format")
 	}
 }

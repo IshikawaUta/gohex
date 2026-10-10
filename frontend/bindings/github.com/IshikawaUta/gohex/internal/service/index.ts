@@ -22,5 +22,6 @@ export type {
     StartupInfo,
     TemplateField,
     TemplateInfo,
+    TimelineFilter,
     WindowData
 } from "./models.js";

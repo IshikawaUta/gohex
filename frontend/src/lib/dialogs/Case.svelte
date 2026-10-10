@@ -42,10 +42,36 @@
   let eSummary = $state("");
   let eEvidence = $state("");
 
+  // Timeline filter + export.
+  let tlKind = $state("");
+  let tlFrom = $state("");
+  let tlTo = $state("");
+  let tlSearch = $state("");
+  let tlExportFormat = $state("csv");
+  let tlLoading = $state(false);
+
   let cse = $derived(caseState?.case ?? null);
   let evidence = $derived(cse?.evidence ?? []);
   let findings = $derived(cse?.findings ?? []);
-  let events = $derived(sortEvents(cse?.events ?? []));
+  let allEvents = $derived(sortEvents(cse?.events ?? []));
+  // Apply the filter client-side so the table updates as you type; the
+  // service-side TimelineQuery/TimelineExport honor the same fields.
+  let events = $derived(
+    allEvents.filter((ev) => {
+      if (tlKind && ev.kind !== tlKind) return false;
+      if (tlFrom || tlTo) {
+        const t = ev.time ? Date.parse(ev.time) : Number.NaN;
+        if (Number.isNaN(t)) return false;
+        if (tlFrom && t < Date.parse(tlFrom)) return false;
+        if (tlTo && t > Date.parse(tlTo) + 86400000) return false;
+      }
+      if (tlSearch) {
+        const hay = `${ev.summary} ${ev.source} ${ev.kind}`.toLowerCase();
+        if (!hay.includes(tlSearch.toLowerCase())) return false;
+      }
+      return true;
+    }),
+  );
   let reportFormat = $state("html");
 
   $effect(() => {
@@ -324,6 +350,37 @@
     }
   }
 
+  async function exportTimeline(): Promise<void> {
+    if (!cse) return;
+    let path: string;
+    try {
+      const res = await Dialogs.SaveFile({
+        Title: "Export timeline",
+        Filename: `${cse.name.replace(/[^\w.-]+/g, "_")}_timeline.${tlExportFormat}`,
+      });
+      path = (Array.isArray(res) ? res[0] : res) as string;
+    } catch (e) {
+      error = `Save dialog failed: ${errMsg(e)}`;
+      return;
+    }
+    if (!path) return;
+    tlLoading = true;
+    error = "";
+    try {
+      const r: SaveResult = await svc.TimelineExport(tlExportFormat, path, {
+        kind: tlKind,
+        from: tlFrom ? new Date(tlFrom).toISOString() : "",
+        to: tlTo ? new Date(tlTo).toISOString() : "",
+        search: tlSearch,
+      });
+      flash(`Timeline written: ${r.bytesSaved} bytes → ${r.path} (sha256:${r.sha256})`);
+    } catch (e) {
+      error = errMsg(e);
+    } finally {
+      tlLoading = false;
+    }
+  }
+
   function when(iso: string): string {
     if (!iso || iso.startsWith("0001-01-01")) return "not recorded";
     const d = new Date(iso);
@@ -566,6 +623,29 @@
           <button class="primary" onclick={() => void addEvent()} disabled={busy || !eSummary.trim()}>
             Add event
           </button>
+        </div>
+        <div class="bar" style="background: var(--bg-hover, transparent); border-radius: 6px; padding: 6px 8px;">
+          <label class="field"><span>Filter kind</span>
+            <select bind:value={tlKind}>
+              <option value="">all</option>
+              <option value="manual">manual</option>
+              <option value="visit">visit</option>
+              <option value="download">download</option>
+              <option value="fs">fs</option>
+              <option value="carve">carve</option>
+              <option value="evidence">evidence</option>
+              <option value="export">export</option>
+            </select>
+          </label>
+          <label class="field"><span>From</span><input type="date" bind:value={tlFrom} /></label>
+          <label class="field"><span>To</span><input type="date" bind:value={tlTo} /></label>
+          <label class="field grow"><span>Search</span><input bind:value={tlSearch} placeholder="summary / source" /></label>
+          <span class="count">{events.length} / {allEvents.length}</span>
+          <select bind:value={tlExportFormat} title="Timeline export format">
+            <option value="csv">CSV</option>
+            <option value="json">JSON</option>
+          </select>
+          <button onclick={() => void exportTimeline()} disabled={tlLoading || busy}>Export timeline…</button>
         </div>
         <div class="scroll">
           <table>

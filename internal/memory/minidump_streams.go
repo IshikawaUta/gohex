@@ -70,9 +70,9 @@ const (
 
 // PROCESSOR_ARCHITECTURE values from MINIDUMP_SYSTEM_INFO.
 const (
-	mdmpArchIntel  = 0
-	mdmpArchAMD64  = 9
-	mdmpArchARM64  = 12
+	mdmpArchIntel   = 0
+	mdmpArchAMD64   = 9
+	mdmpArchARM64   = 12
 	mdmpArchUnknown = 0xFFFF
 )
 

@@ -13,7 +13,7 @@ const (
 	elfNotePRPSInfo  = 3
 	elfNoteFile      = 0x46494C45 // "FILE"
 	elfPTNote        = 4
-	elfNoteHdr       = 12 // namesz + descsz + type
+	elfNoteHdr       = 12  // namesz + descsz + type
 	elf64PRStatusOff = 232 // offsetof(struct elf_prstatus, pr_regs) amd64
 	elf32PRStatusOff = 188 // offsetof(struct elf_prstatus, pr_regs) i386
 	elf64PRPidOff    = 152 // offsetof(struct elf_prstatus, pr_pid) amd64

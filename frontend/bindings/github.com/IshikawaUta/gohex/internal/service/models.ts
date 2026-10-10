@@ -219,6 +219,17 @@ export interface TemplateInfo {
 }
 
 /**
+ * TimelineFilter narrows a timeline query. A zero field matches
+ * everything; From/To are inclusive RFC3339 instants.
+ */
+export interface TimelineFilter {
+    "kind"?: string;
+    "from"?: string;
+    "to"?: string;
+    "search"?: string;
+}
+
+/**
  * WindowData is one viewport slice: raw bytes plus the decoded text column.
  */
 export interface WindowData {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	stdhex "encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -426,4 +427,146 @@ func (a *App) CaseReport(format, dstPath string) (SaveResult, error) {
 		},
 	})
 	return SaveResult{Path: abs, BytesSaved: int64(n), Mode: "report", SHA256: sum}, nil
+}
+
+// TimelineFilter narrows a timeline query. A zero field matches
+// everything; From/To are inclusive RFC3339 instants.
+type TimelineFilter struct {
+	Kind   string `json:"kind,omitempty"`
+	From   string `json:"from,omitempty"`
+	To     string `json:"to,omitempty"`
+	Search string `json:"search,omitempty"`
+}
+
+// TimelineQuery returns the open case's timeline, sorted oldest-first,
+// with the given filter applied. It is a read of the in-memory case;
+// the access is already covered by the case-open audit record.
+func (a *App) TimelineQuery(f TimelineFilter) ([]forensics.Event, error) {
+	a.mu.Lock()
+	c := a.curCase
+	a.mu.Unlock()
+	if c == nil {
+		return nil, errNoCase
+	}
+	var from, to time.Time
+	if f.From != "" {
+		from, _ = time.Parse(time.RFC3339, f.From)
+	}
+	if f.To != "" {
+		to, _ = time.Parse(time.RFC3339, f.To)
+	}
+	search := strings.ToLower(strings.TrimSpace(f.Search))
+	out := make([]forensics.Event, 0, len(c.Events))
+	for _, ev := range c.Timeline() {
+		if f.Kind != "" && ev.Kind != f.Kind {
+			continue
+		}
+		// A date filter is exclusive: undated entries would clutter a
+		// range query, so they are dropped once From/To is set.
+		if !from.IsZero() || !to.IsZero() {
+			if ev.Time.IsZero() {
+				continue
+			}
+			if !from.IsZero() && ev.Time.Before(from) {
+				continue
+			}
+			if !to.IsZero() && ev.Time.After(to) {
+				continue
+			}
+		}
+		if search != "" {
+			hay := strings.ToLower(ev.Summary + " " + ev.Source + " " + ev.Kind)
+			if !strings.Contains(hay, search) {
+				continue
+			}
+		}
+		out = append(out, ev)
+	}
+	return out, nil
+}
+
+// TimelineExport writes the open case's timeline (optionally filtered)
+// to dstPath as CSV or JSON. The destination is hashed and the export
+// is audited, like every other write the tool performs.
+func (a *App) TimelineExport(format, dstPath string, f TimelineFilter) (SaveResult, error) {
+	format = strings.ToLower(strings.TrimSpace(format))
+	if format != "csv" && format != "json" {
+		return SaveResult{}, fmt.Errorf("service: timeline export: unknown format %q", format)
+	}
+	if strings.TrimSpace(dstPath) == "" {
+		return SaveResult{}, errors.New("service: timeline export: empty destination")
+	}
+	events, err := a.TimelineQuery(f)
+	if err != nil {
+		return SaveResult{}, err
+	}
+	var buf bytes.Buffer
+	switch format {
+	case "csv":
+		buf.WriteString("time,kind,source,summary,evidenceId\n")
+		for _, ev := range events {
+			fmt.Fprintf(&buf, "%s,%s,%s,%s,%s\n",
+				csvField(ev.Time.Format(time.RFC3339)),
+				csvField(ev.Kind),
+				csvField(ev.Source),
+				csvField(ev.Summary),
+				csvField(ev.EvidenceID),
+			)
+		}
+	default:
+		enc := json.NewEncoder(&buf)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(events); err != nil {
+			return SaveResult{}, err
+		}
+	}
+	payload := buf.Bytes()
+
+	abs := absPath(dstPath)
+	dst, err := os.OpenFile(abs, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return SaveResult{}, fmt.Errorf("service: timeline export: %w", err)
+	}
+	abort := func(err error) (SaveResult, error) {
+		dst.Close()
+		os.Remove(abs)
+		_ = a.log.Log(audit.Event{
+			Action: audit.ActionExport,
+			Target: abs,
+			Result: audit.ResultError,
+			Detail: map[string]string{"op": "timeline", "error": err.Error()},
+		})
+		return SaveResult{}, err
+	}
+	h := sha256.New()
+	h.Write(payload)
+	n, err := dst.Write(payload)
+	if err != nil {
+		return abort(fmt.Errorf("service: timeline export: %w", err))
+	}
+	if err := dst.Close(); err != nil {
+		return abort(fmt.Errorf("service: timeline export close: %w", err))
+	}
+	sum := stdhex.EncodeToString(h.Sum(nil))
+	_ = a.log.Log(audit.Event{
+		Action: audit.ActionExport,
+		Target: abs,
+		Result: audit.ResultOK,
+		Hash:   "sha256:" + sum,
+		Detail: map[string]string{
+			"op":     "timeline",
+			"format": format,
+			"bytes":  strconv.Itoa(n),
+			"events": strconv.Itoa(len(events)),
+		},
+	})
+	return SaveResult{Path: abs, BytesSaved: int64(n), Mode: "timeline", SHA256: sum}, nil
+}
+
+// csvField quotes a CSV cell if it contains a comma, quote or newline.
+func csvField(s string) string {
+	if strings.ContainsAny(s, ",\"\n\r") {
+		return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
+	}
+	return s
 }

@@ -621,6 +621,24 @@ export function TemplateLoad(path: string): $CancellablePromise<$models.Template
 }
 
 /**
+ * TimelineExport writes the open case's timeline (optionally filtered)
+ * to dstPath as CSV or JSON. The destination is hashed and the export
+ * is audited, like every other write the tool performs.
+ */
+export function TimelineExport(format: string, dstPath: string, f: $models.TimelineFilter): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(1697669523, format, dstPath, f);
+}
+
+/**
+ * TimelineQuery returns the open case's timeline, sorted oldest-first,
+ * with the given filter applied. It is a read of the in-memory case;
+ * the access is already covered by the case-open audit record.
+ */
+export function TimelineQuery(f: $models.TimelineFilter): $CancellablePromise<forensics$0.Event[] | null> {
+    return $Call.ByID(663780419, f);
+}
+
+/**
  * Translate localises a UI string.
  */
 export function Translate(lang: string, key: string, ...args: any[]): $CancellablePromise<string> {
