@@ -79,6 +79,13 @@
   >
     Crash report
   </button>
+  <button
+    class="tb"
+    onclick={() => (store.showCompare = true)}
+    title="Byte-compare two open documents and list the differing ranges (read-only)"
+  >
+    Compare
+  </button>
   <span class="sep"></span>
   <button
     class="tb"

@@ -27,6 +27,7 @@ class Store {
   showScript = $state(false);
   showTemplate = $state(false);
   showDump = $state(false);
+  showCompare = $state(false);
   findOpen = $state(false);
   pendingNibble = $state(-1);
   revealFn: ((off: number, selLen?: number) => void) | null = null;

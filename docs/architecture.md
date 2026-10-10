@@ -23,6 +23,7 @@ later stages plug in.
 │ internal/memory      memory dumps (LiME, AVML, ELF core, MDMP, windump) │
 │ internal/fs          read-only FAT/NTFS/ext/ISO/HFS+/APFS  │
 │ internal/recovery    signature-based file carving          │
+│ internal/compare     binary compare (differing byte ranges) │
 │ internal/browser     Chrome/Firefox/Safari artefact reader │
 │ internal/forensics   case, evidence, timeline, reports     │
 │ internal/script      sandboxed Starlark engine (read-only) │
@@ -168,6 +169,18 @@ non-goal: frames ship exactly as written.
 `internal/hex` implements three pattern kinds (raw hex, text with case
 folding, Go regexp) over a `Stream` abstraction, with forward/backward/wrapped
 find and a bounded find-all (max 500 matches sent to the UI per query).
+
+### Binary compare
+
+`internal/compare` diffs two `io.ReaderAt` sources: 64 KiB blocks that
+match are skipped with a single `bytes.Equal`, only differing blocks are
+scanned byte by byte, and the result carries the contiguous differing
+ranges (capped at 500 — counts stay exact past the cap), the first
+differing offset and exact equal/differing totals. Bytes that exist only
+in the longer input form one trailing range. The service exposes it as
+`CompareDocuments` over two open tabs; the GUI renders the range table.
+Nothing is written or audited — both documents were already audited when
+they were opened.
 
 ### Recovery and carving
 

@@ -15,6 +15,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as browser$0 from "../browser/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as compare$0 from "../compare/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as config$0 from "../config/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -211,6 +214,16 @@ export function Close(): $CancellablePromise<void> {
  */
 export function CloseDocument(id: number): $CancellablePromise<void> {
     return $Call.ByID(588891799, id);
+}
+
+/**
+ * CompareDocuments byte-compares two open documents and reports the
+ * differing ranges, the first differing offset and equal/differing byte
+ * counts. Both documents are read-only sources; nothing is audited
+ * because no file is opened (the documents already have open records).
+ */
+export function CompareDocuments(idA: number, idB: number): $CancellablePromise<compare$0.Result> {
+    return $Call.ByID(34865669, idA, idB);
 }
 
 /**

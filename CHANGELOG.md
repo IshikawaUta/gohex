@@ -130,6 +130,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
   symbolication; malformed or unrecognized input errors instead of
   guessing. Exposed as `DumpInfo` with audit records and a GUI Crash
   report panel.
+- **Binary compare** (`internal/compare`): range diff of two open
+  documents — 64 KiB equal-block fast path, byte-level scan inside
+  differing blocks only, contiguous differing ranges capped at 500 with
+  exact equal/differing counts and the first differing offset. Size
+  mismatches contribute one trailing range. Exposed as
+  `CompareDocuments` with a GUI Compare panel.
 - Documentation: architecture, user guide, security, legal, release.
 - CI: GitHub Actions build/test/lint matrix for Linux, Windows, macOS.
 

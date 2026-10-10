@@ -85,6 +85,22 @@ Toolbar → **Hash…** computes a checksum of the active document; the result
 appears in the status bar (`SHA-256: …`). The list includes *file* hashes
 (sha256/sha512/sha1/md5/crc32/crc32c/blake3/xxhash64) and *selection* variants.
 
+## Comparing documents
+
+Toolbar → **Compare** byte-compares two open documents read-only and
+lists every contiguous differing range with its offset and length — the
+binary equivalent of WinHex's file compare, useful for spotting the one
+edited sector in two disk images.
+
+Pick A and B from the open tabs, press **Compare**: the summary reports
+either "identical" or the first differing offset plus exact equal /
+differing byte counts. Identical regions are skipped in 64 KiB blocks, so
+comparing two multi-gigabyte images only pays byte-level cost inside the
+blocks that actually differ. The range list is capped at 500 entries
+(marked truncated) but the byte counts stay exact. Comparing a document
+with itself is rejected; sizes may differ — bytes present in only one
+document form a trailing differing range.
+
 ## Disk images & file systems
 
 Toolbar → **Disk** opens the disk-image browser and walks a medium
