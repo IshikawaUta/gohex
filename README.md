@@ -84,6 +84,18 @@ Cross-compiling the GUI requires the target OS toolchain (CGO); release binaries
 The companion CLI (`cmd/gohex-cli`) provides read-only `hash`, `info` and
 `search`; the GUI is the only place with write paths.
 
+A loopback-only REST facade (`cmd/gohex-server`) is available for
+scripting and remote triage. It is off unless you run it, binds
+`127.0.0.1` only (non-loopback binds are refused — use an SSH tunnel),
+and requires a bearer token on every evidence endpoint:
+
+```bash
+./bin/gohex-server -token "$(openssl rand -hex 32)"
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8377/api/v1/version
+curl -H "Authorization: Bearer $TOKEN" -d '{"path":"evidence.dd"}' \
+  http://127.0.0.1:8377/api/v1/documents/open
+```
+
 ## Responsible use
 
 - Use only on data you are authorized to examine.
