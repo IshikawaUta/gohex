@@ -10,7 +10,7 @@
     SaveResult,
     CloneJobStatus,
   } from "../../../bindings/github.com/IshikawaUta/gohex/internal/service/models";
-  import type { Entry } from "../../../bindings/github.com/IshikawaUta/gohex/internal/fs/models";
+  import type { Entry, Stream } from "../../../bindings/github.com/IshikawaUta/gohex/internal/fs/models";
 
   let path = $state("");
   let image = $state<ImageInfo | null>(null);
@@ -23,6 +23,10 @@
   let preview = $state("");
   let busy = $state(false);
   let error = $state("");
+
+  // NTFS alternate data streams.
+  let adsStreams = $state<Stream[]>([]);
+  let adsOpen = $state(false);
 
   // Clone v2 state.
   let cloneOpen = $state(false);
@@ -265,6 +269,71 @@
     return lines.join("\n");
   }
 
+  let selectedEntry = $derived(entries.find((e) => e.path === selectedPath) ?? null);
+  let canStreams = $derived(
+    fsInfo?.type === "ntfs" && !!selectedEntry && !selectedEntry.dir,
+  );
+
+  async function loadStreams(): Promise<void> {
+    if (!path || !selectedPath) return;
+    busy = true;
+    error = "";
+    try {
+      adsStreams = (await svc.FsStreams(path, fsOffset, fsSize, selectedPath)) ?? [];
+      adsOpen = true;
+    } catch (e) {
+      error = errMsg(e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function openStream(s: Stream): Promise<void> {
+    busy = true;
+    error = "";
+    try {
+      await svc.FsOpenStream(path, fsOffset, fsSize, selectedPath, s.name);
+      flash(`Opened stream ${s.path} (${fmtSize(s.size)}) read-only`);
+      store.showDisk = false;
+    } catch (e) {
+      error = errMsg(e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function exportStream(s: Stream): Promise<void> {
+    let dst: string;
+    try {
+      dst = (await Dialogs.SaveFile({
+        Title: "Export alternate stream",
+        Filename: s.path.replace(/:/g, "_"),
+      })) as string;
+    } catch (e) {
+      error = `Export dialog failed: ${errMsg(e)}`;
+      return;
+    }
+    if (!dst) return;
+    busy = true;
+    error = "";
+    try {
+      const res: SaveResult = await svc.FsStreamExport(
+        path,
+        fsOffset,
+        fsSize,
+        selectedPath,
+        s.name,
+        dst,
+      );
+      flash(`Exported ${res.bytesSaved} bytes → ${res.path} (sha256:${res.sha256})`);
+      store.showDisk = false;
+    } catch (e) {
+      error = errMsg(e);
+    } finally {
+      busy = false;
+    }
+  }
+
   function fmtSize(n: number): string {
     if (n >= 1 << 30) return `${(n / (1 << 30)).toFixed(2)} GiB`;
     if (n >= 1 << 20) return `${(n / (1 << 20)).toFixed(2)} MiB`;
@@ -444,6 +513,52 @@
             <button class="primary" onclick={exportSelected} disabled={busy || !selectedPath}>
               Export file…
             </button>
+            {#if canStreams}
+              <button onclick={() => void loadStreams()} disabled={busy}>
+                Alternate streams…
+              </button>
+            {/if}
+            {#if adsOpen}
+              <div class="ads">
+                <div class="adshead">
+                  <span>ADS of {selectedEntry?.name}</span>
+                  <button class="crumb" onclick={() => (adsOpen = false)}>✕</button>
+                </div>
+                {#if adsStreams.length}
+                  <ul class="entries">
+                    {#each adsStreams as s (s.name)}
+                      <li>
+                        <div class="adsrow">
+                          <span class="name" title={s.path}>{s.name}</span>
+                          <span class="dim">{fmtSize(s.size)}</span>
+                          {#if s.resident}<span class="tag">R</span>{/if}
+                          {#if s.compressed}<span class="tag">C</span>{/if}
+                          {#if s.encrypted}<span class="tag">E</span>{/if}
+                          <button
+                            class="crumb"
+                            disabled={busy || s.compressed || s.encrypted}
+                            onclick={() => void openStream(s)}
+                            title="Open this stream in the hex editor"
+                          >
+                            Open
+                          </button>
+                          <button
+                            class="crumb"
+                            disabled={busy || s.compressed || s.encrypted}
+                            onclick={() => void exportStream(s)}
+                            title="Export this stream to a file"
+                          >
+                            Export…
+                          </button>
+                        </div>
+                      </li>
+                    {/each}
+                  </ul>
+                {:else}
+                  <p class="dim">No named streams on this file.</p>
+                {/if}
+              </div>
+            {/if}
           </div>
         </div>
       {:else if parts.length}
@@ -720,6 +835,37 @@
   .empty {
     padding: 10px;
     font-size: 12.5px;
+  }
+
+  .ads {
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+    max-height: 200px;
+    overflow: auto;
+  }
+
+  .adshead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .adsrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 2px 0;
+  }
+
+  .adsrow .name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
   }
 
   .error {

@@ -47,3 +47,38 @@ export interface Entry {
      */
     "attributes"?: string[] | null;
 }
+
+/**
+ * Stream describes one named alternate data stream (ADS) of an NTFS
+ * file. The unnamed default stream is NOT listed here — it is the
+ * file itself, already exposed by Stat/ReadAt.
+ */
+export interface Stream {
+    /**
+     * Name is the stream name without the colon prefix
+     * ("secret" for "file.txt:secret").
+     */
+    "name": string;
+
+    /**
+     * Path is the full reference for UI display ("file.txt:secret").
+     */
+    "path": string;
+
+    /**
+     * Size is the logical stream size in bytes.
+     */
+    "size": number;
+
+    /**
+     * Resident marks streams whose data lives inside the MFT record.
+     */
+    "resident"?: boolean;
+
+    /**
+     * Compressed / Encrypted flag the attribute header bits; such
+     * streams are listed but not readable by this reader.
+     */
+    "compressed"?: boolean;
+    "encrypted"?: boolean;
+}

@@ -374,6 +374,16 @@ export function FsList(path: string, offset: number, size: number, dir: string):
 }
 
 /**
+ * FsOpenStream opens one named alternate data stream of an NTFS file
+ * as a hex document (read-only, audited). Compressed/encrypted
+ * streams are refused — the reader does not implement those codecs
+ * and guessing would taint evidence.
+ */
+export function FsOpenStream(path: string, offset: number, size: number, fsPath: string, stream: string): $CancellablePromise<$models.DocInfo> {
+    return $Call.ByID(1806372189, path, offset, size, fsPath, stream);
+}
+
+/**
  * FsRead returns up to length bytes of a file inside the image starting at
  * off. length is clamped to the read window so a hostile request cannot
  * exhaust memory.
@@ -387,6 +397,26 @@ export function FsRead(path: string, offset: number, size: number, fsPath: strin
  */
 export function FsStat(path: string, offset: number, size: number, fsPath: string): $CancellablePromise<fs$0.Entry> {
     return $Call.ByID(1387366339, path, offset, size, fsPath);
+}
+
+/**
+ * FsStreamExport copies one named alternate stream out of the image
+ * to dstPath, recording the SHA-256 of the copy in the audit log
+ * (chain of custody). The destination must not exist.
+ */
+export function FsStreamExport(path: string, offset: number, size: number, fsPath: string, stream: string, dstPath: string): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(2048822319, path, offset, size, fsPath, stream, dstPath);
+}
+
+/**
+ * FsStreams lists the named alternate data streams (ADS) of a file
+ * inside an NTFS image. The unnamed default stream is excluded — it is
+ * the file body, already visible via FsStat/FsRead. Filesystems
+ * without ADS support (FAT, ext, HFS+, ISO) return an empty list and
+ * no error, so callers can probe unconditionally.
+ */
+export function FsStreams(path: string, offset: number, size: number, fsPath: string): $CancellablePromise<fs$0.Stream[] | null> {
+    return $Call.ByID(3409700926, path, offset, size, fsPath);
 }
 
 /**
