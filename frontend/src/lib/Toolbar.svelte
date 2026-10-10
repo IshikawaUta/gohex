@@ -233,10 +233,11 @@
 <style>
   .toolbar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    height: var(--toolbar-h);
-    padding: 0 8px;
+    min-height: var(--toolbar-h);
+    padding: 4px 8px;
     background: var(--bg-panel);
     border-bottom: 1px solid var(--border);
     flex: none;
@@ -246,6 +247,7 @@
     padding: 4px 9px;
     font-size: 12px;
     white-space: nowrap;
+    flex: none;
   }
 
   .tb.active {
@@ -258,10 +260,12 @@
     height: 18px;
     background: var(--border);
     margin: 0 3px;
+    flex: none;
   }
 
   .tools {
     position: relative;
+    flex: none;
   }
 
   .caret {
@@ -318,11 +322,19 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    flex: none;
   }
 
   .sel {
     padding: 3px 6px;
     font-size: 12px;
     max-width: 160px;
+    flex: none;
+  }
+
+  @media (max-width: 1150px) {
+    .lbl {
+      display: none;
+    }
   }
 </style>
