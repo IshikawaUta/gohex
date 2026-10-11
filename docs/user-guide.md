@@ -35,16 +35,16 @@ Tests/CI can pre-accept with `GOHEX_SKIP_DISCLAIMER=1`.
 ## The window
 
 ```
-┌ toolbar ────────────────────────────────────────────────────┐
+┌ toolbar ──────────────────────────────────────────────────────────┐
 │ Open New Save SaveAs │ Undo Redo Find │ Encoding Theme Hash │ ⚙ ? │
-├ tab bar ────────────────────────────────────────────────────┤
-│ [sampleA.bin ✕] [+]                                          │
-├ find panel (Ctrl+F, optional) ───────────────────────────────┤
-├ hex grid ────────────────────────────────────────────────────┤
-│ 00000000  47 6F 48 65 78 …          GoHex …                 │
-├ status bar ──────────────────────────────────────────────────┤
-│ offset/goto field · selection · size · encoding              │
-└──────────────────────────────────────────────────────────────┘
+├ tab bar ──────────────────────────────────────────────────────────┤
+│ [sampleA.bin ✕] [+]                                               │
+├ find panel (Ctrl+F, optional) ────────────────────────────────────┤
+├ hex grid ─────────────────────────────────────────────────────────┤
+│ 00000000  47 6F 48 65 78 …          GoHex …                       │
+├ status bar ───────────────────────────────────────────────────────┤
+│ offset/goto field · selection · size · encoding                   │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 - **Hex grid**: click a nibble to place the cursor; type `0`–`f` to overwrite
@@ -362,8 +362,13 @@ Stock bindings (WinHex-flavoured); every chord is configurable in
 | `Ctrl+O` | Open file | `file.open` |
 | `Ctrl+N` | New document | `file.new` |
 | `Ctrl+S` / `Ctrl+Shift+S` | Save / Save as | `file.save` / `file.saveAs` |
+| `Ctrl+Shift+E` | Export view (selection) to hex/PDF/PNG | `file.exportView` |
 | `Ctrl+Z` / `Ctrl+Y` | Undo / Redo | `edit.undo` / `edit.redo` |
 | `Ctrl+C` / `Ctrl+Shift+C` | Copy as hex / as text | `edit.copy` / `edit.copyText` |
+| `Ctrl+X` | Cut selection (copy hex + delete) | `edit.cut` |
+| `Ctrl+V` | Paste hex bytes over cursor/selection | `edit.paste` |
+| `Ctrl+Shift+I` | Insert hex bytes at cursor | `edit.insert` |
+| `Ctrl+Shift+F` | Fill selection with a byte | `edit.fill` |
 | `Ctrl+A` | Select all | `edit.selectAll` |
 | `Ctrl+F` | Find panel | `search.find` |
 | `Ctrl+G` | Go to offset | `goto.offset` |

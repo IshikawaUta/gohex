@@ -297,8 +297,10 @@ func TestShortcutsValidation(t *testing.T) {
 	if p.Shortcuts["file.open"] != "Ctrl+O" || p.Shortcuts["search.find"] != "Ctrl+F" {
 		t.Fatalf("defaults lost bindings: %v", p.Shortcuts)
 	}
-	if _, clash := p.Shortcuts["edit.fill"]; clash {
-		t.Fatal("edit.fill must not shadow search.find on Ctrl+F")
+	// Ctrl+Shift+F / Ctrl+Shift+I are distinct chords from Ctrl+F; the
+	// shift modifier is preserved by Normalize so they do not shadow.
+	if p.Shortcuts["edit.fill"] != "Ctrl+Shift+F" || p.Shortcuts["edit.insert"] != "Ctrl+Shift+I" {
+		t.Fatalf("defaults lost edit.fill/edit.insert bindings: %v", p.Shortcuts)
 	}
 
 	// Overrides normalise case and modifier order.

@@ -48,6 +48,8 @@ var defaultActions = map[string]string{
 	"edit.copy":        "Ctrl+C",
 	"edit.copyText":    "Ctrl+Shift+C",
 	"edit.paste":       "Ctrl+V",
+	"edit.insert":      "Ctrl+Shift+I",
+	"edit.fill":        "Ctrl+Shift+F",
 	"edit.selectAll":   "Ctrl+A",
 	"search.find":      "Ctrl+F",
 	"search.replace":   "Ctrl+H",

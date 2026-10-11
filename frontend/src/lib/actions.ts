@@ -1,11 +1,30 @@
 import { store, flash } from "./state.svelte";
-import { svc, models, Dialogs, Clipboard, errMsg } from "./api";
+import { svc, models, Dialogs, Clipboard, errMsg, toBase64 } from "./api";
 import { ethicsAccepted } from "./ethics";
 import * as NH from "./navhist";
 import * as NM from "./macros";
 import * as BM from "./bookmarks";
 import { fmtOffsetHex } from "./format";
 import type { Preferences } from "../../bindings/github.com/IshikawaUta/gohex/internal/config/models";
+
+/** Hard cap for single-shot edit payloads (paste/insert/fill). */
+const MAX_EDIT = 16 << 20;
+
+/** parseHexInput accepts spaced/0x/comma-separated hex and returns bytes. */
+function parseHexInput(s: string): Uint8Array {
+  const clean = s.replace(/0x/gi, "").replace(/[\s,:]+/g, "");
+  if (clean.length === 0 || clean.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(clean)) {
+    throw new Error("expected an even number of hex digits (e.g. 90 90 CC)");
+  }
+  if (clean.length / 2 > MAX_EDIT) {
+    throw new Error("payload too large (max 16 MiB)");
+  }
+  const out = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+  }
+  return out;
+}
 
 export async function refreshDocs(): Promise<void> {
   store.docs = (await svc.ListDocuments()) ?? [];
@@ -327,6 +346,83 @@ export async function selectAll(): Promise<void> {
   NM.record({ kind: "selectAll" });
   await svc.SetSelection(doc.id, 0, doc.size).catch(() => {});
   store.revealFn?.(0);
+}
+
+export async function cutSelection(): Promise<void> {
+  const doc = store.active;
+  if (!doc || store.selEnd <= store.selStart) {
+    flash("Select the bytes to cut first.");
+    return;
+  }
+  const len = store.selEnd - store.selStart;
+  if (len > MAX_EDIT) {
+    flash("Selection too large to cut (max 16 MiB)");
+    return;
+  }
+  try {
+    await store.copyFn?.("hex");
+    await svc.DeleteRange(doc.id, store.selStart, len);
+    await refreshDocs();
+    syncSelectionFromDoc();
+    flash(`Cut ${len} bytes (undo with Ctrl+Z)`);
+  } catch (e) {
+    flash(errMsg(e));
+  }
+}
+
+export async function pasteAtCursor(): Promise<void> {
+  const doc = store.active;
+  if (!doc) return;
+  try {
+    const text = await Clipboard.Text();
+    const bytes = parseHexInput(text);
+    const at = store.selEnd > store.selStart ? store.selStart : store.cursor;
+    await svc.WriteBytes(doc.id, at, toBase64(bytes));
+    await refreshDocs();
+    syncSelectionFromDoc();
+    flash(`Pasted ${bytes.length} bytes over ${fmtOffsetHex(at)} (undo with Ctrl+Z)`);
+  } catch (e) {
+    flash(errMsg(e));
+  }
+}
+
+export async function insertBytesPrompt(): Promise<void> {
+  const doc = store.active;
+  if (!doc) return;
+  const raw = window.prompt("Insert hex bytes at the cursor (e.g. 90 90 CC):", "");
+  if (raw === null || raw.trim() === "") return;
+  try {
+    const bytes = parseHexInput(raw);
+    await svc.InsertBytes(doc.id, store.cursor, toBase64(bytes));
+    await refreshDocs();
+    syncSelectionFromDoc();
+    flash(`Inserted ${bytes.length} bytes at ${fmtOffsetHex(store.cursor)} (undo with Ctrl+Z)`);
+  } catch (e) {
+    flash(errMsg(e));
+  }
+}
+
+export async function fillSelectionPrompt(): Promise<void> {
+  const doc = store.active;
+  if (!doc || store.selEnd <= store.selStart) {
+    flash("Select the range to fill first.");
+    return;
+  }
+  const len = store.selEnd - store.selStart;
+  const raw = window.prompt(`Fill ${len} selected byte(s) with (00–FF):`, "00");
+  if (raw === null || raw.trim() === "") return;
+  const clean = raw.trim().replace(/^0x/i, "");
+  if (!/^[0-9a-fA-F]{2}$/.test(clean)) {
+    flash("Fill value must be one byte (00–FF).");
+    return;
+  }
+  try {
+    await svc.FillRange(doc.id, store.selStart, len, parseInt(clean, 16));
+    await refreshDocs();
+    flash(`Filled ${len} byte(s) at ${fmtOffsetHex(store.selStart)} with 0x${clean.toUpperCase()} (undo with Ctrl+Z)`);
+  } catch (e) {
+    flash(errMsg(e));
+  }
 }
 
 export async function hashActive(algo: string, selectionOnly: boolean): Promise<void> {

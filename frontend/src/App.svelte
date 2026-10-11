@@ -225,6 +225,26 @@
         NM.record({ kind: "copy", what: "text" });
         void store.copyFn?.("text");
         break;
+      case "edit.cut":
+        if (inInput || !doc) return;
+        e.preventDefault();
+        void A.cutSelection();
+        break;
+      case "edit.paste":
+        if (inInput || !doc) return;
+        e.preventDefault();
+        void A.pasteAtCursor();
+        break;
+      case "edit.insert":
+        if (inInput || !doc) return;
+        e.preventDefault();
+        void A.insertBytesPrompt();
+        break;
+      case "edit.fill":
+        if (inInput || !doc) return;
+        e.preventDefault();
+        void A.fillSelectionPrompt();
+        break;
       case "search.find":
         e.preventDefault();
         store.findOpen = true;

@@ -1,10 +1,10 @@
 <script lang="ts">
   import { store, flash } from "../state.svelte";
-  import { svc, Dialogs, errMsg } from "../api";
+  import { svc, Dialogs, errMsg, fromBase64 } from "../api";
   import type { ByteCount } from "../../../bindings/github.com/IshikawaUta/gohex/internal/util/models";
   import type { SearchMatch } from "../../../bindings/github.com/IshikawaUta/gohex/internal/util/models";
 
-  type Tab = "entropy" | "calc" | "regex" | "strings" | "split" | "shred" | "gen" | "time";
+  type Tab = "entropy" | "calc" | "regex" | "strings" | "split" | "shred" | "gen" | "time" | "convert";
 
   let tab = $state<Tab>("entropy");
   let busy = $state(false);
@@ -47,6 +47,13 @@
   let pngOffset = $state(0);
   let pngLength = $state(256);
   let pngScale = $state(4);
+
+  // Convert (text↔hex, Intel HEX, S-records).
+  let convMode = $state<"t2h" | "h2t" | "ihex" | "srec">("t2h");
+  let convEnc = $state("UTF-8");
+  let convIn = $state("");
+  let convOut = $state("");
+  let convNote = $state("");
 
   $effect(() => {
     if (!store.showUtilities) {
@@ -224,6 +231,37 @@
     }
   }
 
+  async function runConvert(): Promise<void> {
+    busy = true;
+    error = "";
+    convOut = "";
+    convNote = "";
+    try {
+      if (convMode === "t2h") {
+        convOut = (await svc.ConvertTextToHex(convIn, convEnc)) ?? "";
+        convNote = `${convIn.length} character(s) → hex`;
+      } else if (convMode === "h2t") {
+        convOut = (await svc.ConvertHexToText(convIn, convEnc)) ?? "";
+        convNote = `${convIn.replace(/\s+/g, "").length / 2} byte(s) → text`;
+      } else {
+        const [b64, origin] = (convMode === "ihex"
+          ? await svc.ConvertIntelHex(convIn)
+          : await svc.ConvertSRecords(convIn)) as [string | null, number];
+        const len = b64 ? Math.floor((b64.length * 3) / 4) : 0;
+        convNote = `${len} byte(s), origin 0x${origin.toString(16).toUpperCase()}`;
+        convOut = b64
+          ? Array.from(fromBase64(b64).subarray(0, 512))
+              .map((b) => b.toString(16).padStart(2, "0"))
+              .join(" ") + (len > 512 ? " …" : "")
+          : "";
+      }
+    } catch (e) {
+      error = errMsg(e);
+    } finally {
+      busy = false;
+    }
+  }
+
   async function exportPNG(): Promise<void> {
     const doc = store.active;
     if (!doc) return;
@@ -274,11 +312,12 @@
     <p class="meta">
       Entropy, byte frequency, hex calculator, regex tester, strings,
       split/join, secure delete (best-effort), password/UUID/ULID/RNG,
-      timestamp converter and hex-view PNG export.
+      timestamp converter, converters (text/hex/Intel HEX/S-records)
+      and hex-view PNG export.
     </p>
 
     <div class="tabs" role="tablist">
-      {#each [["entropy", "Entropy"], ["calc", "Calculator"], ["regex", "Regex"], ["strings", "Strings"], ["split", "Split/Join"], ["shred", "Shred"], ["gen", "Generators"], ["time", "Timestamp"]] as [id, label]}
+      {#each [["entropy", "Entropy"], ["calc", "Calculator"], ["regex", "Regex"], ["strings", "Strings"], ["split", "Split/Join"], ["shred", "Shred"], ["gen", "Generators"], ["time", "Timestamp"], ["convert", "Convert"]] as [id, label]}
         <button role="tab" class:active={tab === id} aria-selected={tab === id} onclick={() => (tab = id as Tab)}>{label}</button>
       {/each}
     </div>
@@ -444,6 +483,45 @@
         <label class="field"><span>Scale</span><input type="number" bind:value={pngScale} min="1" max="16" /></label>
         <button onclick={() => void exportPNG()} disabled={busy || !store.active}>Export PNG…</button>
       </div>
+    {:else if tab === "convert"}
+      <div class="bar">
+        <label class="field"><span>Mode</span>
+          <select bind:value={convMode}>
+            <option value="t2h">Text → hex</option>
+            <option value="h2t">Hex → text</option>
+            <option value="ihex">Intel HEX → bytes</option>
+            <option value="srec">S-records → bytes</option>
+          </select>
+        </label>
+        {#if convMode === "t2h" || convMode === "h2t"}
+          <label class="field"><span>Encoding</span>
+            <select bind:value={convEnc}>
+              <option>UTF-8</option>
+              <option>UTF-16LE</option>
+              <option>UTF-16BE</option>
+              <option>ASCII</option>
+              <option>EBCDIC</option>
+            </select>
+          </label>
+        {/if}
+        <button class="primary" onclick={() => void runConvert()} disabled={busy || !convIn}>Convert</button>
+      </div>
+      <label class="field grow"><span>
+        {convMode === "t2h"
+          ? "Text"
+          : convMode === "h2t"
+            ? "Hex bytes (spaces optional)"
+            : convMode === "ihex"
+              ? "Intel HEX stream (:10000000…)"
+              : "S-record stream (S0/S1/S9…)"}
+      </span>
+        <textarea bind:value={convIn} rows={5} spellcheck="false"></textarea>
+      </label>
+      {#if convOut}
+        <p class="meta">{convNote}</p>
+        <textarea class="mono" readonly rows={5} value={convOut}></textarea>
+        <button onclick={() => void navigator.clipboard.writeText(convOut)}>Copy result</button>
+      {/if}
     {/if}
 
     {#if error}<p class="error">{error}</p>{/if}
