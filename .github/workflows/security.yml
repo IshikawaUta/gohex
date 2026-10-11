@@ -51,6 +51,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+      - name: WebView/GTK headers (cgo packages load under govulncheck)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev libwebkitgtk-6.0-dev pkg-config
       - name: Satisfy //go:embed frontend/dist
         run: |
           mkdir -p frontend/dist
