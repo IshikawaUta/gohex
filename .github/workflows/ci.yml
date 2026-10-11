@@ -182,7 +182,12 @@ jobs:
 
       - name: Smoke launch (Linux/Xvfb)
         if: runner.os == 'Linux'
+        # WEBKIT_DISABLE_SANDBOX: the runner's Xvfb session has no
+        # credential/secret service, so WebKitGTK's sandbox helper dies
+        # with "failed to receive credentials" and takes the app down.
+        # GTK_A11Y=none silences the non-fatal a11y-bus warning.
         run: |
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 GTK_A11Y=none \
           xvfb-run -a bash -c '
             GOHEX_SKIP_DISCLAIMER=1 GOHEX_OPEN=testdata/sample.bin ./bin/gohex &
             pid=$!
