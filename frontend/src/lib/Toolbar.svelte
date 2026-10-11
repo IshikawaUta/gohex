@@ -143,6 +143,14 @@
   <button class="tb" onclick={() => A.saveActiveAs()} disabled={!doc} title="Save As (Ctrl+Shift+S)">
     {store.t("menu.file.saveAs")}
   </button>
+  <button
+    class="tb"
+    onclick={() => A.exportView()}
+    disabled={!doc}
+    title="Export hex-grid view as PDF/PNG (Ctrl+Shift+E)"
+  >
+    Export view
+  </button>
   <span class="sep"></span>
   <div class="tools" bind:this={toolsRoot}>
     <button

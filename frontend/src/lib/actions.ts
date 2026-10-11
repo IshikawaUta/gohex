@@ -136,6 +136,45 @@ function flashSaved(res: models.SaveResult): void {
   flash(`Saved ${res.bytesSaved} bytes → ${res.path}${mode}`);
 }
 
+export async function exportView(): Promise<void> {
+  const doc = store.active;
+  if (!doc) return;
+  // Prefer the selection; otherwise export a 4 KiB window from the cursor.
+  let offset = store.cursor;
+  let length = 4096;
+  if (store.selEnd > store.selStart) {
+    offset = store.selStart;
+    length = store.selEnd - store.selStart;
+  }
+  if (offset + length > doc.size) {
+    length = Math.max(0, doc.size - offset);
+  }
+  if (length <= 0) {
+    flash("Nothing to export — select a range or move the cursor.");
+    return;
+  }
+  let path: string;
+  try {
+    const chosen = await Dialogs.SaveFile({
+      Title: "Export hex-grid view (PDF or PNG)",
+      Filename: `${(doc.name || "untitled").replace(/\.[^.]+$/, "")}_${offset.toString(16)}.pdf`,
+    });
+    path = (Array.isArray(chosen) ? chosen[0] : chosen) as string;
+  } catch (e) {
+    flash(`Save dialog failed: ${errMsg(e)}`);
+    return;
+  }
+  if (!path) return;
+  try {
+    const res = await svc.ExportView(doc.id, offset, length, path);
+    flash(
+      `Hex-grid view exported (${length} bytes) → ${res.path} (sha256:${res.sha256})`,
+    );
+  } catch (e) {
+    flash(errMsg(e));
+  }
+}
+
 export async function undo(): Promise<void> {
   const doc = store.active;
   if (!doc) return;

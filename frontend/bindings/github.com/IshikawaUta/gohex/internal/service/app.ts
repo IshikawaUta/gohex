@@ -373,6 +373,18 @@ export function ExportPNG(id: number, offset: number, length: number, scale: num
 }
 
 /**
+ * ExportView renders [offset, offset+length) of a document as a
+ * hex-grid exhibit (offset + hex bytes + ASCII gutter) and writes it
+ * to dstPath as PDF or PNG. The format is taken from the destination
+ * extension so the save dialog alone picks the shape. The copy is
+ * hashed and audited like every other export; the document itself is
+ * untouched.
+ */
+export function ExportView(id: number, offset: number, length: number, dstPath: string): $CancellablePromise<$models.SaveResult> {
+    return $Call.ByID(3638060157, id, offset, length, dstPath);
+}
+
+/**
  * FillRange overwrites the range with a repeated byte value.
  */
 export function FillRange(id: number, offset: number, length: number, value: number): $CancellablePromise<void> {

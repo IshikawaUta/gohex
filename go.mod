@@ -10,6 +10,7 @@ require (
 	github.com/wailsapp/wails/v3 v3.0.0-beta.27
 	go.starlark.net v0.0.0-20261005163335-bcb1a1a55bf9
 	golang.org/x/crypto v0.53.0
+	golang.org/x/image v0.41.0
 	lukechampine.com/blake3 v1.4.1
 )
 

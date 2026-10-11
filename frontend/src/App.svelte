@@ -193,6 +193,10 @@
         e.preventDefault();
         void A.saveActiveAs();
         break;
+      case "file.exportView":
+        e.preventDefault();
+        void A.exportView();
+        break;
       case "edit.undo":
         if (inInput) return;
         e.preventDefault();

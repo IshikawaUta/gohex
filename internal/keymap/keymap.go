@@ -41,6 +41,7 @@ var defaultActions = map[string]string{
 	"file.new":         "Ctrl+N",
 	"file.save":        "Ctrl+S",
 	"file.saveAs":      "Ctrl+Shift+S",
+	"file.exportView":  "Ctrl+Shift+E",
 	"edit.undo":        "Ctrl+Z",
 	"edit.redo":        "Ctrl+Y",
 	"edit.cut":         "Ctrl+X",
