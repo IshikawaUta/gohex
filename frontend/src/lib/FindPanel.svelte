@@ -96,9 +96,9 @@
 <div class="findpanel" role="search">
   <div class="row">
     <select class="mode" bind:value={mode}>
-      <option value="text">{store.t("search.text")}</option>
-      <option value="hex">{store.t("search.hex")}</option>
-      <option value="regex">{store.t("search.regex")}</option>
+      <option value="text" title={store.t("search.text")}>{store.t("search.short.text")}</option>
+      <option value="hex" title={store.t("search.hex")}>{store.t("search.short.hex")}</option>
+      <option value="regex" title={store.t("search.regex")}>{store.t("search.short.regex")}</option>
     </select>
 
     <input
@@ -175,12 +175,14 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
   }
 
   .mode {
-    width: 92px;
+    width: 100px;
     padding: 3px 6px;
     font-size: 12px;
+    flex: none;
   }
 
   .pat {
