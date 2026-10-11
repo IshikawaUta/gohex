@@ -7,7 +7,7 @@ log for casework.
 ## Install & run
 
 ```bash
-# Prerequisites: Go ≥ 1.25, Node.js ≥ 20, and WebView dev libraries
+# Prerequisites: Go ≥ 1.26.9, Node.js ≥ 20.19, and WebView dev libraries
 #   Linux:   sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
 #   Windows: WebView2 Runtime + MinGW-w64 (CGO)
 #   macOS:   Xcode Command Line Tools

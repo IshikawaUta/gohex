@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { store, flash } from "./state.svelte";
   import { svc, models, Dialogs, errMsg } from "./api";
   import * as NM from "./macros";
@@ -8,7 +8,14 @@
   let mode = $state<"text" | "hex" | "regex">("text");
   let pattern = $state("");
   let patEl: HTMLInputElement | undefined = $state();
-  onMount(() => patEl?.focus());
+  onMount(() => {
+    patEl?.focus();
+    // F3 / Shift+F3 (search.next/prev) dispatched by the global keymap.
+    store.findNavFn = (dir) => findSingle(dir);
+  });
+  onDestroy(() => {
+    store.findNavFn = null;
+  });
   let replacement = $state("");
   let caseFold = $state(true);
   let wrap = $state(true);

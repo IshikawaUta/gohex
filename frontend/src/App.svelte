@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { store, flash } from "./lib/state.svelte";
+  import type { ThemeName } from "./lib/state.svelte";
   import { Events, svc } from "./lib/api";
   import * as A from "./lib/actions";
   import * as NH from "./lib/navhist";
@@ -249,6 +250,27 @@
         e.preventDefault();
         store.findOpen = true;
         break;
+      case "search.replace":
+        e.preventDefault();
+        store.findOpen = true;
+        break;
+      case "search.next":
+      case "search.prev": {
+        e.preventDefault();
+        const dir = action === "search.prev" ? "prev" : "next";
+        if (store.findOpen && store.findNavFn) store.findNavFn(dir);
+        else store.findOpen = true;
+        break;
+      }
+      case "view.theme": {
+        e.preventDefault();
+        if (!store.prefs) return;
+        const order: ThemeName[] = ["dark", "light", "high-contrast"];
+        const cur = order.indexOf(store.theme);
+        const theme = order[(cur + 1) % order.length] as typeof store.prefs.theme;
+        void A.preferencesChanged({ ...store.prefs, theme });
+        break;
+      }
       case "goto.offset":
         e.preventDefault();
         document.querySelector<HTMLButtonElement>(".offset-btn")?.click();
@@ -292,8 +314,8 @@
         store.showHelp = true;
         break;
       default:
-        // Reserved actions (search.replace, search.next/prev, view.theme,
-        // help.*) have no UI surface yet; the binding is kept for them.
+        // No other keymap action is reserved; every default binding in
+        // internal/keymap/keymap.go has a UI handler here.
         return;
     }
   }

@@ -41,7 +41,7 @@ packaging & signing). The full roadmap lives in [docs/architecture.md](docs/arch
 
 ## Build & run
 
-Prerequisites: Go ≥ 1.25, Node.js ≥ 20 (GUI), platform WebView development libraries.
+Prerequisites: Go ≥ 1.26.9, Node.js ≥ 20.19 (GUI), platform WebView development libraries.
 
 - **Linux**: `libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config`
 - **Windows**: WebView2 Runtime (preinstalled on Win 10/11) + MinGW-w64 for CGO builds

@@ -40,6 +40,7 @@ class Store {
   pendingNibble = $state(-1);
   revealFn: ((off: number, selLen?: number) => void) | null = null;
   copyFn: ((kind: "hex" | "text" | "offset") => Promise<void>) | null = null;
+  findNavFn: ((dir: "next" | "prev") => void) | null = null;
 
   get active(): DocInfo | undefined {
     return this.docs.find((d) => d.id === this.activeId);
