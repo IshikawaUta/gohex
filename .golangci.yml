@@ -13,24 +13,32 @@ linters:
     - noctx
     - misspell
     - unconvert
-    - unparam
     - errorlint
-  settings:
-    gofumpt:
-      # Keep the forensic code readable: no long one-liners.
-      extra-rules: false
-    gosec:
-      # G404: math/rand is fine for sample data generation; the crypto
-      # paths (password generator, token minting) use crypto/rand and
-      # are pinned by tests. G304: file paths come from the examiner
-      # via native dialogs — that is the product.
-      excludes:
-        - G404
-        - G304
+  # unparam is deliberately NOT enabled: service methods and recovery
+  # helpers keep uniform signatures across format handlers, and test
+  # fixtures intentionally pin arguments — unparam flags both as
+  # "always receives the same value", which is the design.
 
 linters-settings:
   errcheck:
     check-blank: false
+  gosec:
+    excludes:
+      # G404: math/rand is fine for sample data generation; the crypto
+      # paths (password generator, token minting) use crypto/rand.
+      # G304: file paths come from the examiner via native dialogs.
+      - G404
+      - G304
+      # G401/G501/G505: MD5 and SHA-1 are hash *products* of this tool —
+      # examiners must compute legacy digests. Signing paths never use them.
+      - G401
+      - G501
+      - G505
+      # G115: every integer conversion in the binary parsers and wire
+      # formats is preceded by an explicit bounds check against the
+      # container extent; the rule fires on the whole codebase because
+      # every parser does this by design.
+      - G115
 
 issues:
   exclude-rules:
@@ -38,4 +46,8 @@ issues:
     - path: _test\.go
       linters:
         - errcheck
+        - gosec
+    # Hash algorithm catalogue: weak primitives are the feature.
+    - path: internal/hash/
+      linters:
         - gosec

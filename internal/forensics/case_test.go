@@ -62,16 +62,20 @@ func TestSetMeta(t *testing.T) {
 
 func TestSaveAndOpenRoundTrip(t *testing.T) {
 	c, _ := New("Case A", "examiner", "note")
-	ev := Evidence{Path: "/evidence/disk.dd", Kind: KindImage, Size: 4096,
-		SHA256: strings.Repeat("ab", 32), AddedAt: time.Now().UTC()}
+	ev := Evidence{
+		Path: "/evidence/disk.dd", Kind: KindImage, Size: 4096,
+		SHA256: strings.Repeat("ab", 32), AddedAt: time.Now().UTC(),
+	}
 	if err := c.AddEvidence(ev); err != nil {
 		t.Fatalf("AddEvidence: %v", err)
 	}
 	if err := c.AddFinding(Finding{Title: "suspicious", Severity: SeverityHigh, EvidenceID: "e-001"}); err != nil {
 		t.Fatalf("AddFinding: %v", err)
 	}
-	if err := c.AddEvent(Event{Time: time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC),
-		Source: "browser:Chrome", Kind: EventVisit, Summary: "visited example.test"}); err != nil {
+	if err := c.AddEvent(Event{
+		Time:   time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC),
+		Source: "browser:Chrome", Kind: EventVisit, Summary: "visited example.test",
+	}); err != nil {
 		t.Fatalf("AddEvent: %v", err)
 	}
 
@@ -208,7 +212,8 @@ func TestValidate(t *testing.T) {
 		{Title: "t", Severity: SeverityLow},
 	}}, true)
 	// Identifiers share one namespace across evidence and findings.
-	ok(&Case{Name: "n", SchemaVersion: SchemaVersion,
+	ok(&Case{
+		Name: "n", SchemaVersion: SchemaVersion,
 		Evidence: []Evidence{{ID: "e-001", Path: "/a", Kind: KindFile}},
 		Findings: []Finding{{ID: "e-001", Title: "t", Severity: SeverityLow}},
 	}, true)

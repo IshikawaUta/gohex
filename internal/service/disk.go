@@ -146,8 +146,10 @@ func (a *App) OpenRange(path string, offset, size int64) (DocInfo, error) {
 	if size <= 0 || offset+size > img.Size() {
 		size = img.Size() - offset
 	}
-	src := &subSource{r: img, name: fmt.Sprintf("%s[%d:%d]", filepath.Base(abs), offset, offset+size),
-		base: offset, size: size, cls: img}
+	src := &subSource{
+		r: img, name: fmt.Sprintf("%s[%d:%d]", filepath.Base(abs), offset, offset+size),
+		base: offset, size: size, cls: img,
+	}
 	return a.openContainer(abs, src, map[string]string{
 		"offset": fmt.Sprintf("%d", offset),
 		"size":   fmt.Sprintf("%d", size),

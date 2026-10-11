@@ -149,9 +149,8 @@ func TestEditUndoRedo(t *testing.T) {
 	if err := app.WriteBytes(info.ID, 100, []byte("X")); err == nil {
 		t.Fatal("write out of bounds should fail")
 	}
-	if _, err := app.Undo(info.ID); err != nil {
-		// may still have history; fine
-	}
+	// Undo may still have history; the error is fine to ignore.
+	_, _ = app.Undo(info.ID)
 }
 
 func TestReadOnlyProfileDeniesEdits(t *testing.T) {

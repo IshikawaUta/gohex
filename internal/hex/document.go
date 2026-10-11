@@ -226,7 +226,7 @@ func (d *Document) readAtLocked(p []byte, off int64) (int, error) {
 		case spanBase:
 			got, err := d.src.ReadAt(p[n:n+int(take)], s.base+local)
 			n += got
-			if err != nil && err != io.EOF {
+			if err != nil && !errors.Is(err, io.EOF) {
 				return n, err
 			}
 		case spanData:
@@ -257,7 +257,7 @@ func (d *Document) ReadCopy(off, n int64) ([]byte, error) {
 	}
 	buf := make([]byte, n)
 	got, err := d.readAtLocked(buf, off)
-	if got > 0 && (err == nil || err == io.EOF) {
+	if got > 0 && (err == nil || errors.Is(err, io.EOF)) {
 		return buf[:got], nil
 	}
 	if err == nil {

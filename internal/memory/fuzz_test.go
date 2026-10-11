@@ -39,6 +39,6 @@ func FuzzOpen(f *testing.F) {
 			}
 			total += s.Length
 		}
-		_, _ = cap.Locate(int64(total / 2))
+		_, _ = cap.Locate(total / 2)
 	})
 }

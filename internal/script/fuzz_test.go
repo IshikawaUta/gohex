@@ -29,9 +29,6 @@ func (fuzzHost) Read(id, offset, size int64) ([]byte, error) {
 }
 
 func (fuzzHost) Find(id int64, text string, offset int64, limit int) ([]int64, error) {
-	if limit > 8 {
-		limit = 8
-	}
 	return nil, nil
 }
 

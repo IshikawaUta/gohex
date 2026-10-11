@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -141,7 +142,7 @@ func TestOpenErrors(t *testing.T) {
 	if _, err := Open(filepath.Join(t.TempDir(), "nope", "deep", "x.log"), nil); err == nil {
 		t.Error("missing dir should fail")
 	}
-	if _, err := Open(filepath.Join(t.TempDir(), "x.log"), []byte("short")); err != ErrNoKey {
+	if _, err := Open(filepath.Join(t.TempDir(), "x.log"), []byte("short")); !errors.Is(err, ErrNoKey) {
 		t.Errorf("short key = %v", err)
 	}
 	if _, err := ReadAll(filepath.Join(t.TempDir(), "missing"), nil); err == nil {

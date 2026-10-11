@@ -190,7 +190,7 @@ func TestExportPNG(t *testing.T) {
 		t.Fatal(err)
 	}
 	dst := filepath.Join(t.TempDir(), "out.png")
-	res, err := app.ExportPNG(doc.ID, 0, int64(doc.Size), 2, dst)
+	res, err := app.ExportPNG(doc.ID, 0, doc.Size, 2, dst)
 	if err != nil {
 		t.Fatal(err)
 	}

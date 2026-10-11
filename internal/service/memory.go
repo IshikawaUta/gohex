@@ -120,7 +120,7 @@ func (s *memorySource) ReadAt(p []byte, off int64) (int, error) {
 		p = p[:max]
 	}
 	n, err := s.r.ReadAt(p, s.base+off)
-	if err == io.EOF && n > 0 {
+	if errors.Is(err, io.EOF) && n > 0 {
 		err = nil // short tail read inside the range is not an error
 	}
 	return n, err

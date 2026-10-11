@@ -40,7 +40,7 @@ func openQemu(path, format string) (Reader, error) {
 	out, err := exec.Command("qemu-img", "convert", "-O", "raw", path, rawPath).CombinedOutput()
 	if err != nil {
 		os.RemoveAll(dir)
-		return nil, fmt.Errorf("image/%s: qemu-img convert: %v\n%s", format, err, out)
+		return nil, fmt.Errorf("image/%s: qemu-img convert: %w\n%s", format, err, out)
 	}
 	base, err := openRaw(rawPath)
 	if err != nil {

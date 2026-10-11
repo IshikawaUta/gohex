@@ -3,6 +3,7 @@ package memory
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -774,7 +775,7 @@ func TestAVMLParseAndRead(t *testing.T) {
 		t.Errorf("Locate(gap) = %v, want not-covered error", err)
 	}
 	// Reads past the end behave like io.ReaderAt.
-	if _, err := r.ReadAt(make([]byte, 1), r.Size()); err != io.EOF {
+	if _, err := r.ReadAt(make([]byte, 1), r.Size()); !errors.Is(err, io.EOF) {
 		t.Errorf("ReadAt(end) = %v, want EOF", err)
 	}
 	if _, err := r.ReadAt(make([]byte, 1), -1); err == nil {
@@ -1149,12 +1150,12 @@ func TestReaderUncompressed(t *testing.T) {
 	if _, err := r.ReadAt(make([]byte, 1), -1); err == nil {
 		t.Error("ReadAt(-1) = nil, want error")
 	}
-	if _, err := r.ReadAt(make([]byte, 1), r.Size()); err != io.EOF {
+	if _, err := r.ReadAt(make([]byte, 1), r.Size()); !errors.Is(err, io.EOF) {
 		t.Errorf("ReadAt(end) = %v, want EOF", err)
 	}
 	// A short read at the end reports EOF with the partial count.
 	n, err := r.ReadAt(make([]byte, 16), r.Size()-4)
-	if n != 4 || err != io.EOF {
+	if n != 4 || !errors.Is(err, io.EOF) {
 		t.Errorf("short tail read: n=%d err=%v", n, err)
 	}
 }

@@ -59,10 +59,10 @@ func newExFAT(r rangeReader, head []byte) (FS, error) {
 	if fatOffset == 0 || heap < fatOffset || rootClus < 2 || clusCnt == 0 {
 		return nil, fmt.Errorf("fs/exfat: implausible geometry")
 	}
-	e.clus = int64(1) << (bpsShift + spcShift) // cluster = sector << sectors-per-cluster
-	e.fatOff = int64(fatOffset) * 512          // sector-addressed
-	e.fatLen = int64(fatLen) * 512
-	e.heapOff = int64(heap) * 512 // sector-addressed
+	e.clus = 1 << (bpsShift + spcShift) // cluster = sector << sectors-per-cluster
+	e.fatOff = fatOffset * 512          // sector-addressed
+	e.fatLen = fatLen * 512
+	e.heapOff = heap * 512 // sector-addressed
 	e.clusCnt = clusCnt
 	e.rootClus = rootClus
 
@@ -236,9 +236,8 @@ func exfatParseDir(raw []byte) []exDirItem {
 			break // end of directory
 		}
 		deleted := typ&0x80 == 0
-		if deleted && typ != exEntryDeleted && typ != 0x40 && typ != 0x41 && typ != 0x81&0x7F {
-			// A deleted secondary has IN_USE cleared; still parse types.
-		}
+		// Deleted secondaries clear IN_USE (bit 7); all types below are
+		// still parsed whether the entry is live or deleted.
 		switch typ & 0x7F {
 		case exEntryFile & 0x7F: // 0x05
 			flush()

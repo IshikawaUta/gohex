@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -120,7 +121,7 @@ func readWAL(f *os.File, dbPageSize uint32) (*walOverlay, string) {
 	frame := make([]byte, int(walFrameHeaderLen)+int(pageSize))
 	for i := 0; i < maxWALFrames; i++ {
 		if _, err := io.ReadFull(f, frame); err != nil {
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
+			if errors.Is(err, io.EOF) || err == io.ErrUnexpectedEOF {
 				break
 			}
 			break

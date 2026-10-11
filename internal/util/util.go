@@ -294,13 +294,13 @@ func ExtractStrings(data []byte, minLen int, limit int) []SearchMatch {
 	start := -1 // start of the current run, -1 when outside one
 	i := 0
 	for i <= len(data) {
-		var r rune
 		var size int
 		printable := false
 		if i < len(data) {
 			if data[i] >= 0x20 && data[i] < 0x7F {
-				r, size, printable = rune(data[i]), 1, true
+				size, printable = 1, true
 			} else if data[i] >= 0x80 {
+				var r rune
 				r, size = utf8.DecodeRune(data[i:])
 				if r != utf8.RuneError && unicode.IsPrint(r) {
 					printable = true
@@ -467,7 +467,7 @@ func Shred(path string, passes int) error {
 				}
 			})
 		default:
-			patterns = append(patterns, func(b []byte) { io.ReadFull(rand.Reader, b) })
+			patterns = append(patterns, func(b []byte) { _, _ = io.ReadFull(rand.Reader, b) })
 		}
 	}
 	for _, fill := range patterns {
@@ -635,7 +635,7 @@ func EntropyReader(r io.Reader) (float64, int64, error) {
 			}
 			total += int64(n)
 		}
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
+		if errors.Is(err, io.EOF) || err == io.ErrUnexpectedEOF {
 			break
 		}
 		if err != nil {

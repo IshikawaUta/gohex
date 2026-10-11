@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -175,7 +176,7 @@ func (h *hfsPlusFS) openBtree(f hfsFork, name string) (*hfsBtree, error) {
 	if int64(len(buf)) > f.size {
 		buf = buf[:f.size]
 	}
-	if _, err := h.readFork(f, 0, buf); err != nil && err != io.EOF {
+	if _, err := h.readFork(f, 0, buf); err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("fs/hfs+: read %s B-tree header: %w", name, err)
 	}
 	if buf[8] != hfsNodeHeader {
@@ -218,7 +219,7 @@ func (h *hfsPlusFS) readNode(b *hfsBtree, n uint32) ([]byte, error) {
 	}
 	buf := make([]byte, b.nodeSize)
 	off := int64(n) * int64(b.nodeSize)
-	if _, err := h.readFork(b.fork, off, buf); err != nil && err != io.EOF {
+	if _, err := h.readFork(b.fork, off, buf); err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("fs/hfs+: read B-tree node %d: %w", n, err)
 	}
 	return buf, nil
@@ -226,7 +227,7 @@ func (h *hfsPlusFS) readNode(b *hfsBtree, n uint32) ([]byte, error) {
 
 // forkNodes estimates how many B-tree nodes the fork can hold.
 func (h *hfsPlusFS) forkNodes(f hfsFork) int64 {
-	return int64(f.size) / 512 // nodeSize >= 512, loose upper bound
+	return f.size / 512 // nodeSize >= 512, loose upper bound
 }
 
 // hfsForEachRec calls fn with the key and data of every record in a node.

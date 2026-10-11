@@ -132,7 +132,7 @@ func ReadWindow(src Source, off int64, n int) ([]byte, error) {
 	}
 	buf := make([]byte, n)
 	got, err := src.ReadAt(buf, off)
-	if got > 0 && (err == nil || err == io.EOF) {
+	if got > 0 && (err == nil || errors.Is(err, io.EOF)) {
 		return buf[:got], nil
 	}
 	if err == nil {

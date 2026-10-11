@@ -51,7 +51,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func usage(w io.Writer) {
-	io.WriteString(w, `gohex-cli — read-only hex/forensics companion CLI
+	_, _ = io.WriteString(w, `gohex-cli — read-only hex/forensics companion CLI
 
 Usage:
   gohex-cli hash   [-algo sha256] FILE     hash a file (streams; works on E01/L01/VHD/...)

@@ -265,7 +265,6 @@ type ntfsAttr struct {
 	startVCN    int64
 	realSize    int64
 	allocSize   int64
-	runListOff  int
 	content     []byte // resident payload (or nil)
 	runsRaw     []byte // non-resident runlist bytes
 	extStartVCN int64

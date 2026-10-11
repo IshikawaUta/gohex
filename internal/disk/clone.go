@@ -160,8 +160,8 @@ func Clone(ctx context.Context, src io.ReaderAt, srcSize int64, dstPattern strin
 		st := cloneState{Copied: copied, Parts: dst.parts}
 		if b, err := json.Marshal(st); err == nil {
 			tmp := statePath + ".tmp"
-			if os.WriteFile(tmp, b, 0o644) == nil {
-				os.Rename(tmp, statePath)
+			if os.WriteFile(tmp, b, 0o600) == nil {
+				_ = os.Rename(tmp, statePath)
 			}
 		}
 	}
@@ -352,10 +352,6 @@ func (d *cloneDest) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func (d *cloneDest) shouldRoll() bool {
-	return d.splitSize > 0 && d.inPart >= d.splitSize
-}
-
 func (d *cloneDest) roll() error {
 	if err := d.closeCurrent(); err != nil {
 		return err
@@ -522,7 +518,7 @@ func hashOne(h hash.Hash, path string, buf []byte) error {
 		if n > 0 {
 			h.Write(buf[:n])
 		}
-		if rerr == io.EOF {
+		if errors.Is(rerr, io.EOF) {
 			return nil
 		}
 		if rerr != nil {

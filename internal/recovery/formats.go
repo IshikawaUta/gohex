@@ -2,7 +2,6 @@ package recovery
 
 import (
 	"bytes"
-	"compress/bzip2"
 	"compress/gzip"
 	"encoding/binary"
 	"hash/crc32"
@@ -560,8 +559,10 @@ func ooxmlOK(prefix string) ValidateFunc {
 // RAR
 // ---------------------------------------------------------------------------
 
-var rarSigV4 = []byte{'R', 'a', 'r', '!', 0x1A, 0x07, 0x00}
-var rarSigV5 = []byte{'R', 'a', 'r', '!', 0x1A, 0x07, 0x01, 0x00}
+var (
+	rarSigV4 = []byte{'R', 'a', 'r', '!', 0x1A, 0x07, 0x00}
+	rarSigV5 = []byte{'R', 'a', 'r', '!', 0x1A, 0x07, 0x01, 0x00}
+)
 
 func rarOK(s Stream, start int64) bool {
 	var h [8]byte
@@ -670,12 +671,11 @@ func rarWalkV5(s Stream, start, pos, size int64) (int64, bool, bool) {
 		off += fn
 		var dataSize uint64
 		if headerFlags&0x0002 != 0 {
-			ds, dn, ok := readVint(buf, off)
+			ds, _, ok := readVint(buf, off)
 			if !ok {
 				return 0, false, false
 			}
 			dataSize = ds
-			off += dn
 		}
 		if typ == 5 {
 			end := pos + int64(hs) + int64(dataSize)
@@ -991,19 +991,6 @@ func bzip2FooterEnd(s Stream, footerStart, limit int64) int64 {
 	return end
 }
 
-func decompressBzip2Size(s Stream, start int64, maxOut int64) (int64, bool) {
-	r := &offsetReader{s: s, pos: start}
-	zr := bzip2.NewReader(r)
-	n, err := io.Copy(io.Discard, io.LimitReader(zr, maxOut+1))
-	if err != nil {
-		return 0, false
-	}
-	if n > maxOut {
-		return 0, false
-	}
-	return n, true
-}
-
 // ---------------------------------------------------------------------------
 // xz
 // ---------------------------------------------------------------------------
@@ -1066,10 +1053,7 @@ func mp3OK(s Stream, start int64) bool {
 		return false
 	}
 	if h[0] == 'I' && h[1] == 'D' && h[2] == '3' {
-		if h[3] == 0xFF {
-			return false
-		}
-		return true
+		return h[3] != 0xFF
 	}
 	return mpegAudioFrameOK(h[:])
 }
@@ -1290,7 +1274,7 @@ func flacLength(s Stream, start int64) (int64, bool, bool) {
 	// min/max block size at 10-13 must be sane.
 	minBlock := binary.BigEndian.Uint16(hdr[10:12])
 	maxBlock := binary.BigEndian.Uint16(hdr[12:14])
-	if minBlock == 0 || maxBlock < minBlock || maxBlock > 65535 {
+	if minBlock == 0 || maxBlock < minBlock {
 		return 0, false, false
 	}
 	// Walk metadata blocks; last-block flag ends the chain.
@@ -1340,63 +1324,20 @@ func flacLength(s Stream, start int64) (int64, bool, bool) {
 // used and the last frame's end is the extent.
 func flacWalkFrames(s Stream, start, metaEnd, total int64) (int64, bool, bool) {
 	cur := metaEnd
-	for i := 0; i < 100000; i++ {
-		if cur+4 > total {
-			return cur, true, true
-		}
-		var fh [4]byte
-		if err := readFullAt(s, fh[:], start+cur); err != nil {
-			return 0, false, false
-		}
-		if fh[0] != 0xFF || fh[1]&0xFC != 0xF8 {
-			if i == 0 {
-				return cur, false, true
-			}
-			return cur, false, true
-		}
-		// Parse the fixed 4-byte header plus optional UTF-8 coded number.
-		// Frame length: block-size code determines samples; for carving we
-		// use the CRC-8 validated variable header and estimate from sample
-		// count only when the code is a fixed size.
-		bsCode := (fh[2] >> 4) & 0x0F
-		var blockSamples int64
-		switch bsCode {
-		case 0:
-			return 0, false, false // reserved: get from STREAMINFO
-		case 1:
-			blockSamples = 192
-		case 2, 3, 4, 5:
-			blockSamples = 576 << (bsCode - 2)
-		case 6:
-			blockSamples = 0 // get 8 bit from end of header
-		case 7:
-			blockSamples = 0 // get 16 bit from end of header
-		case 8, 9, 10, 11:
-			blockSamples = 256 << (bsCode - 8)
-		case 12, 13:
-			blockSamples = 0 // reserved
-		case 14:
-			blockSamples = 65535
-		case 15:
-			blockSamples = 0 // reserved
-		}
-		// Variable header: coded number (UTF-8) for frame number, then optional
-		// block-size/samplerate bytes, then CRC-8. Then the frame body. Without
-		// parsing CRC-16 at the end we cannot know the body size; FLAC frame
-		// size is not fixed in the header. Fall back: report metadata end plus
-		// first-frame header as extent when the body cannot be measured.
-		//
-		// A practical carving strategy: the STREAMINFO "total samples" field
-		// gives the total PCM sample count; with max block size we can bound
-		// the compressed size only loosely. Instead report from start through
-		// the last reachable metadata + a conservative scan for the next
-		// frame sync and stop. Here we accept metadata end as the extent when
-		// the first audio frame header is present.
-		_ = blockSamples
-		_ = fh
-		return cur + 4, false, true
+	if cur+4 > total {
+		return cur, true, true
 	}
-	return 0, false, false
+	var fh [4]byte
+	if err := readFullAt(s, fh[:], start+cur); err != nil {
+		return 0, false, false
+	}
+	if fh[0] != 0xFF || fh[1]&0xFC != 0xF8 {
+		return cur, false, true
+	}
+	// Without CRC-16 body parsing the frame size is not recoverable from
+	// the 4-byte header alone; report metadata end plus the first-frame
+	// sync as the extent.
+	return cur + 4, false, true
 }
 
 // ---------------------------------------------------------------------------

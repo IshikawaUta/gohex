@@ -229,11 +229,9 @@ func chromeBookmarks(path string) ([]BookmarkEntry, error) {
 			Kind:  kind,
 			Added: chromeTime(parseDecimal(string(n.Date))),
 		})
-		childPath := path
+		childPath := n.Name
 		if path != "" {
 			childPath = path + " / " + n.Name
-		} else {
-			childPath = n.Name
 		}
 		for _, c := range n.Children {
 			walk(c, childPath)

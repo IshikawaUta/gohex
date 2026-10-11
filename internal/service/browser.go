@@ -240,8 +240,10 @@ func marshalBrowserCSV(r browser.Report, kind string) ([]byte, error) {
 			})
 		}
 	case browserKindDownloads:
-		header = []string{"url", "target", "start", "end", "receivedBytes",
-			"totalBytes", "state", "status"}
+		header = []string{
+			"url", "target", "start", "end", "receivedBytes",
+			"totalBytes", "state", "status",
+		}
 		for _, d := range r.Downloads {
 			rows = append(rows, []string{
 				d.URL, d.Target, csvTime(d.Start), csvTime(d.End),

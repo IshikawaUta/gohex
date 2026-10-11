@@ -12,6 +12,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"errors"
 	"fmt"
 	"hash"
 	"hash/adler32"
@@ -179,7 +180,7 @@ func Reader(a Algo, r io.Reader, progress func(total int64) bool) ([]byte, error
 				return nil, fmt.Errorf("hash: canceled after %d bytes", total)
 			}
 		}
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

@@ -2,6 +2,7 @@ package fs
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -246,8 +247,8 @@ func apfsIndexRec(child uint64) []byte {
 // apfsLeafAKeyOrder: inode 2, inode 16, drec docs, drec hello.txt.
 func apfsLeafARecords() []apfsRec {
 	return []apfsRec{
-		{apfsKey(2, apfsCatTypeInode), apfsInodeVal(1, 2, 040755, 0, false)},
-		{apfsKey(16, apfsCatTypeInode), apfsInodeVal(2, 16, 040755, 0, false)},
+		{apfsKey(2, apfsCatTypeInode), apfsInodeVal(1, 2, 0o40755, 0, false)},
+		{apfsKey(16, apfsCatTypeInode), apfsInodeVal(2, 16, 0o40755, 0, false)},
 		{apfsDrecKey(2, "docs"), apfsDrecVal(16, 4)},
 		{apfsDrecKey(2, "hello.txt"), apfsDrecVal(17, 8)},
 	}
@@ -259,8 +260,8 @@ func apfsLeafBRecords() []apfsRec {
 	xattrKey = append(xattrKey, append([]byte(apfsXattrCompressed), 0)...)
 	xattrVal := []byte{0x02, 0x00, 0x04, 0x00, 0x01, 0x00, 0x00, 0x00}
 	return []apfsRec{
-		{apfsKey(17, apfsCatTypeInode), apfsInodeVal(2, 17, 0100644, uint64(len(apfsTestHello)), true)},
-		{apfsKey(18, apfsCatTypeInode), apfsInodeVal(16, 18, 0100644, uint64(len(apfsTestReadme)), true)},
+		{apfsKey(17, apfsCatTypeInode), apfsInodeVal(2, 17, 0o100644, uint64(len(apfsTestHello)), true)},
+		{apfsKey(18, apfsCatTypeInode), apfsInodeVal(16, 18, 0o100644, uint64(len(apfsTestReadme)), true)},
 		{apfsDrecKey(16, "readme.md"), apfsDrecVal(18, 8)},
 		{apfsExtentKey(17, 0), apfsExtentVal(uint64(len(apfsTestHello)), 30)},
 		{apfsExtentKey(18, 0), apfsExtentVal(uint64(len(apfsTestReadme)), 31)},
@@ -403,7 +404,7 @@ func TestAPFSReadsAndLookup(t *testing.T) {
 	if n != 3 || string(p[:3]) != "S!\n" {
 		t.Fatalf("tail n=%d err=%v p=%q", n, err, p[:n])
 	}
-	if err != io.EOF {
+	if !errors.Is(err, io.EOF) {
 		t.Fatalf("tail err=%v", err)
 	}
 }
@@ -411,26 +412,26 @@ func TestAPFSReadsAndLookup(t *testing.T) {
 func TestAPFSErrors(t *testing.T) {
 	f := memFS(t, apfsBuildImage())
 
-	if _, err := f.List("/hello.txt"); err != ErrNotDir {
+	if _, err := f.List("/hello.txt"); !errors.Is(err, ErrNotDir) {
 		t.Fatalf("List on file: %v", err)
 	}
-	if _, err := f.ReadAt("/docs", 0, make([]byte, 1)); err != ErrIsDir {
+	if _, err := f.ReadAt("/docs", 0, make([]byte, 1)); !errors.Is(err, ErrIsDir) {
 		t.Fatalf("ReadAt on dir: %v", err)
 	}
-	if _, err := f.Stat("/nope"); err != ErrNotFound {
+	if _, err := f.Stat("/nope"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Stat missing: %v", err)
 	}
-	if _, err := f.Stat("/docs/nope"); err != ErrNotFound {
+	if _, err := f.Stat("/docs/nope"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Stat nested missing: %v", err)
 	}
-	if _, err := f.List("/hello.txt/x"); err != ErrNotFound {
+	if _, err := f.List("/hello.txt/x"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("resolve below file: %v", err)
 	}
 	if _, err := f.ReadAt("/hello.txt", -1, make([]byte, 1)); err == nil ||
 		!strings.Contains(err.Error(), "negative") {
 		t.Fatalf("negative offset: %v", err)
 	}
-	if _, err := f.ReadAt("/hello.txt", int64(len(apfsTestHello)), make([]byte, 1)); err != io.EOF {
+	if _, err := f.ReadAt("/hello.txt", int64(len(apfsTestHello)), make([]byte, 1)); !errors.Is(err, io.EOF) {
 		t.Fatalf("offset at size: %v", err)
 	}
 	// Reading a hole-filled tail: extents exist only for the real bytes,
@@ -600,7 +601,7 @@ func TestAPFSUnit(t *testing.T) {
 	}
 
 	// Dstream xfield parsing.
-	xfOK := apfsInodeVal(2, 17, 0100644, 1234, true)[92:]
+	xfOK := apfsInodeVal(2, 17, 0o100644, 1234, true)[92:]
 	if sz, ok := apfsXfieldDstream(xfOK); !ok || sz != 1234 {
 		t.Fatalf("dstream size=%d ok=%v", sz, ok)
 	}

@@ -95,7 +95,7 @@ func (w *fatImg) setFat(c, val uint32) {
 		base := w.fatStart + int64(f)*int64(w.fatSz)*int64(w.bps)
 		switch w.fatType {
 		case 32:
-			put := uint32(le32(w.img, int(base+int64(c)*4)))&0xF0000000 | val
+			put := le32(w.img, int(base+int64(c)*4))&0xF0000000 | val
 			binaryPut32(w.img, base+int64(c)*4, put)
 		case 12:
 			off := base + int64(c)*3/2
@@ -358,14 +358,6 @@ func itoa(i int) string {
 		i /= 10
 	}
 	return string(b)
-}
-
-// splitShort splits an 11-byte raw short name into base+ext fields.
-func shortFields(raw string) (string, string) {
-	if len(raw) != 11 {
-		panic("short name must be 11 bytes")
-	}
-	return raw[:8], raw[8:]
 }
 
 func TestFAT32ProbeLabel(t *testing.T) {

@@ -1020,7 +1020,8 @@ func TestEWFUnusableChunk(t *testing.T) {
 // chunks, its table and the terminator. Chunk offsets are absolute within
 // this segment (table base 0), matching EWF1 sets.
 func ewfBuildSegment(t *testing.T, sig string, claim int, term string, withVolume bool,
-	sectors uint64, stored [][]byte, compressed []bool, big bool) []byte {
+	sectors uint64, stored [][]byte, compressed []bool, big bool,
+) []byte {
 	t.Helper()
 	const bps, spc = 512, 64
 	n := len(stored)

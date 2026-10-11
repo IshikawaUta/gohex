@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"sort"
@@ -13,11 +14,7 @@ const (
 	apfsNXMagic  = "NXSB" // container superblock
 	apfsVolMagic = "APSB" // volume superblock
 
-	apfsObjTypeMask = 0x0000FFFF
-
 	// Object types.
-	apfsTypeNXSuperblock = 0x0001
-	apfsTypeOmap         = 0x000B
 
 	// Catalog (fs-tree) record types, high nibble of the key header.
 	apfsCatTypeInode      = 3
@@ -118,9 +115,11 @@ type apfsFS struct {
 
 // newAPFS identifies and opens an APFS container in the range.
 func newAPFS(r rangeReader) (FS, error) {
-	a := &apfsFS{r: r, inodes: make(map[uint64]*apfsInode),
+	a := &apfsFS{
+		r: r, inodes: make(map[uint64]*apfsInode),
 		children: make(map[uint64][]apfsChild), extents: make(map[uint64][]apfsExtent),
-		compressed: make(map[uint64]bool)}
+		compressed: make(map[uint64]bool),
+	}
 
 	// The container superblock lives in block 0; its fields fit in 2 KiB
 	// regardless of block size, so bootstrap the block size from there.
@@ -647,8 +646,8 @@ func apfsFletcher64(b []byte) uint64 {
 
 // cString trims everything from the first NUL.
 func cString(b []byte) string {
-	if i := strings.IndexByte(string(b), 0); i >= 0 {
-		return string(b[:i])
+	if i := bytes.IndexByte(b, 0); i >= 0 {
+		return string(b[:i]) //nolint:gosec // G602: IndexByte contract guarantees i < len(b)
 	}
 	return string(b)
 }
@@ -816,7 +815,7 @@ func (a *apfsFS) ReadAt(path string, off int64, p []byte) (int, error) {
 			nread = avail
 		}
 		phys := int64(e.phys)*a.bs + seek
-		if phys+int64(nread) > a.r.size {
+		if phys+nread > a.r.size {
 			return filled, fmt.Errorf("fs/apfs: extent beyond end of range")
 		}
 		buf := make([]byte, nread)

@@ -133,7 +133,7 @@ func (h *scriptHost) Read(id, offset, size int64) ([]byte, error) {
 	}
 	buf := make([]byte, size)
 	n, err := d.document.ReadAt(buf, offset)
-	if n == 0 && err != nil && err != io.EOF {
+	if n == 0 && err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("service: script read: %w", err)
 	}
 	return buf[:n], nil

@@ -95,16 +95,6 @@ func (t *Table) Scan(fn func(Row) error) error {
 	})
 }
 
-// The columns of sqlite_schema itself, which cannot be recovered from a
-// CREATE TABLE statement because the table does not have one.
-var schemaColumns = []Column{
-	{Name: "type", Type: "TEXT"},
-	{Name: "name", Type: "TEXT"},
-	{Name: "tbl_name", Type: "TEXT"},
-	{Name: "rootpage", Type: "INTEGER"},
-	{Name: "sql", Type: "TEXT"},
-}
-
 // loadSchema reads sqlite_schema (root page 1) and builds the table list.
 func (db *DB) loadSchema() error {
 	n := 0

@@ -1,6 +1,7 @@
 package hex
 
 import (
+	"errors"
 	"fmt"
 	"io"
 )
@@ -34,7 +35,7 @@ func (d *Document) writeToLocked(w io.Writer) (int64, error) {
 				return off, fmt.Errorf("hex: stream write: %w", werr)
 			}
 		}
-		if err != nil && err != io.EOF {
+		if err != nil && !errors.Is(err, io.EOF) {
 			return off, fmt.Errorf("hex: stream read at %#x: %w", off, err)
 		}
 		if got == 0 {

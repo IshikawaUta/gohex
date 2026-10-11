@@ -115,7 +115,7 @@ func applySign(rel, neg bool, ref, n int64, orig string) (int64, error) {
 }
 
 func parseSizeSuffix(t string) (int64, bool, error) {
-	mult := int64(1)
+	var mult int64
 	upper := strings.ToUpper(t)
 	switch {
 	case strings.HasSuffix(upper, "KB"):

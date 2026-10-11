@@ -3,6 +3,7 @@ package fs
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -94,7 +95,8 @@ func hfsHeaderNode(nodeSize int, hdr []byte, usedNodes int) []byte {
 
 // hfsHeaderRec builds the 106-byte B-tree header record.
 func hfsHeaderRec(depth uint16, root, leafCount, leafHead, leafTail, nodeCount, freeNodes uint32,
-	nodeSize, maxKeyLen uint16, keyType byte) []byte {
+	nodeSize, maxKeyLen uint16, keyType byte,
+) []byte {
 	h := make([]byte, 106)
 	putBE16(h, 0, depth)
 	putBE32(h, 2, root)
@@ -221,15 +223,15 @@ func buildHFSPlusImage() []byte {
 
 	// --- catalog B-tree (blocks 4..5) ---
 	files := []hfsRec{
-		{hfsCatKey(2, "GOHEX"), hfsFolderData(2, 4, 040755)},
-		{hfsCatKey(2, "docs"), hfsFolderData(16, 1, 040755)},
-		{hfsCatKey(2, "hello.txt"), hfsFileData(17, 0100644, 0x0002, 0,
+		{hfsCatKey(2, "GOHEX"), hfsFolderData(2, 4, 0o40755)},
+		{hfsCatKey(2, "docs"), hfsFolderData(16, 1, 0o40755)},
+		{hfsCatKey(2, "hello.txt"), hfsFileData(17, 0o100644, 0x0002, 0,
 			uint64(len(hfsTestHello)), []hfsExt{{18, 1}})},
-		{hfsCatKey(16, "readme.md"), hfsFileData(18, 0100644, 0x0082, 0,
+		{hfsCatKey(16, "readme.md"), hfsFileData(18, 0o100644, 0x0082, 0,
 			uint64(len(hfsTestReadme)), []hfsExt{{19, 1}})},
-		{hfsCatKey(2, "big.dat"), hfsFileData(19, 0100644, 0x0002, hfsTypeHardlink,
+		{hfsCatKey(2, "big.dat"), hfsFileData(19, 0o100644, 0x0002, hfsTypeHardlink,
 			hfsTestBigSize, []hfsExt{{9, 1}, {10, 1}, {11, 1}, {12, 1}, {13, 1}, {14, 1}, {15, 1}, {16, 1}})},
-		{hfsCatKey(2, "sparse.dat"), hfsFileData(20, 0444, 0x0002, hfsTypeSymlink,
+		{hfsCatKey(2, "sparse.dat"), hfsFileData(20, 0o444, 0x0002, hfsTypeSymlink,
 			hfsTestSparseSz, []hfsExt{{20, 1}})},
 	}
 	threads := []hfsRec{
@@ -432,19 +434,19 @@ func TestHFSPlusErrors(t *testing.T) {
 	img := buildHFSPlusImage()
 	f := memFS(t, img)
 
-	if _, err := f.List("/hello.txt"); err != ErrNotDir {
+	if _, err := f.List("/hello.txt"); !errors.Is(err, ErrNotDir) {
 		t.Fatalf("List on file: %v", err)
 	}
-	if _, err := f.ReadAt("/docs", 0, make([]byte, 1)); err != ErrIsDir {
+	if _, err := f.ReadAt("/docs", 0, make([]byte, 1)); !errors.Is(err, ErrIsDir) {
 		t.Fatalf("ReadAt on dir: %v", err)
 	}
-	if _, err := f.Stat("/nope"); err != ErrNotFound {
+	if _, err := f.Stat("/nope"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Stat missing: %v", err)
 	}
-	if _, err := f.Stat("/docs/nope"); err != ErrNotFound {
+	if _, err := f.Stat("/docs/nope"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Stat nested missing: %v", err)
 	}
-	if _, err := f.List("/hello.txt/x"); err != ErrNotFound {
+	if _, err := f.List("/hello.txt/x"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("resolve below file: %v", err)
 	}
 }
@@ -574,17 +576,17 @@ func TestHFSPlusUnit(t *testing.T) {
 		t.Fatal("expected truncated key error")
 	}
 	// Duplicate CNIDs keep the first record.
-	if err := h.addCatalogRec(hfsCatKey(2, "a"), hfsFolderData(7, 0, 040755)); err != nil {
+	if err := h.addCatalogRec(hfsCatKey(2, "a"), hfsFolderData(7, 0, 0o40755)); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.addCatalogRec(hfsCatKey(2, "b"), hfsFolderData(7, 0, 040755)); err != nil {
+	if err := h.addCatalogRec(hfsCatKey(2, "b"), hfsFolderData(7, 0, 0o40755)); err != nil {
 		t.Fatal(err)
 	}
 	if h.items[7].name != "a" {
 		t.Fatalf("dup kept %q", h.items[7].name)
 	}
 	// CNID 0 records are ignored.
-	if err := h.addCatalogRec(hfsCatKey(2, "c"), hfsFolderData(0, 0, 040755)); err != nil {
+	if err := h.addCatalogRec(hfsCatKey(2, "c"), hfsFolderData(0, 0, 0o40755)); err != nil {
 		t.Fatal(err)
 	}
 	if len(h.children[2]) != 1 {

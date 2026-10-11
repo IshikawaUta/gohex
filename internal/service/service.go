@@ -501,7 +501,7 @@ func (a *App) ReadWindow(id int64, offset, length int64) (WindowData, error) {
 	}
 	buf := make([]byte, length)
 	n, err := d.document.ReadAt(buf, offset)
-	if n == 0 && err != nil && err != io.EOF {
+	if n == 0 && err != nil && !errors.Is(err, io.EOF) {
 		return WindowData{}, fmt.Errorf("service: read: %w", err)
 	}
 	buf = buf[:n]

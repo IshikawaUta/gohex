@@ -83,7 +83,7 @@ func Decode(enc Encoding, b []byte) string {
 		var sb strings.Builder
 		sb.Grow(len(b))
 		for _, c := range b {
-			sb.WriteRune(rune(ebcdicToUnicode[c]))
+			sb.WriteRune(ebcdicToUnicode[c])
 		}
 		return sb.String()
 	default: // ASCII

@@ -303,7 +303,7 @@ func (t *Template) Apply(r io.ReaderAt, base int64) ([]Value, error) {
 		return nil, fmt.Errorf("template %q needs %d bytes at 0x%x, only %d readable",
 			t.Name, t.Size, base, n)
 	}
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("template %q: read: %w", t.Name, err)
 	}
 	bo := t.byteOrder()

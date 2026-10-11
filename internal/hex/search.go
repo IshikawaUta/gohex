@@ -2,12 +2,13 @@ package hex
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
 
 	"github.com/IshikawaUta/gohex/internal/core"
-	"github.com/IshikawaUta/gohex/internal/encoding" // package bincoding
+	bincoding "github.com/IshikawaUta/gohex/internal/encoding" // package bincoding
 )
 
 // Stream is the minimal read interface the search engine needs; both
@@ -440,10 +441,10 @@ func readFullAt(s Stream, p []byte, off int64) (int, error) {
 		got, err := s.ReadAt(p[n:], off+int64(n))
 		n += got
 		if err != nil {
-			if err == io.EOF && n == len(p) {
+			if errors.Is(err, io.EOF) && n == len(p) {
 				return n, nil
 			}
-			if err == io.EOF && n > 0 && n < len(p) && off+int64(n) >= s.Size() {
+			if errors.Is(err, io.EOF) && n > 0 && n < len(p) && off+int64(n) >= s.Size() {
 				return n, nil
 			}
 			return n, err

@@ -1,6 +1,7 @@
 package dump
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -131,7 +132,7 @@ func TestParseErrors(t *testing.T) {
 	if _, err := Parse(make([]byte, MaxReportSize+1)); err == nil {
 		t.Fatal("oversize input should fail")
 	}
-	if _, err := Parse([]byte("just some plain text\nnot a report")); err != ErrUnrecognized {
+	if _, err := Parse([]byte("just some plain text\nnot a report")); !errors.Is(err, ErrUnrecognized) {
 		t.Fatalf("want ErrUnrecognized, got %v", err)
 	}
 	if _, err := Parse([]byte("{not json\n{}")); err == nil {

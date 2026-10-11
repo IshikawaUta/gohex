@@ -3,6 +3,7 @@ package fs
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"testing"
 )
@@ -291,7 +292,7 @@ func TestReadAtHolesAndReads(t *testing.T) {
 
 	// Read spanning block → hole → block (exercises the fall-through fix).
 	p, err := readAtHelper(t, e, n, 0, len(img) /* big enough */)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(p[:4096], pat0) {
@@ -313,12 +314,12 @@ func TestReadAtEdges(t *testing.T) {
 	copy(img[5*4096:], bytes.Repeat([]byte{0xCC}, 4096))
 	n := extInode{size: 4096, links: []extBlock{{logical: 0, length: 4096, phys: 5}}}
 
-	if _, err := e.readAt(n, 4096, make([]byte, 1)); err != io.EOF {
+	if _, err := e.readAt(n, 4096, make([]byte, 1)); !errors.Is(err, io.EOF) {
 		t.Fatalf("off==size: %v", err)
 	}
 	// Short read at EOF → io.EOF with partial fill.
 	p, err := readAtHelper(t, e, n, 4094, 10)
-	if err != io.EOF {
+	if !errors.Is(err, io.EOF) {
 		t.Fatalf("short: %v", err)
 	}
 	if !bytes.Equal(p[:2], []byte{0xCC, 0xCC}) || p[2] != 0 {
@@ -327,7 +328,7 @@ func TestReadAtEdges(t *testing.T) {
 	// Trailing hole (size larger than last extent).
 	n2 := extInode{size: 9000, links: []extBlock{{logical: 0, length: 4096, phys: 5}}}
 	p, err = readAtHelper(t, e, n2, 4096, 100)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		t.Fatal(err)
 	}
 	for i, b := range p {

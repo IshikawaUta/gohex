@@ -195,7 +195,6 @@ func writePDFFile(w io.Writer, pw *pdfWriter) error {
 		fmt.Fprintf(&buf, "%d 0 obj\n%s\nendobj\n", id, body)
 	}
 
-	const fontID = 5
 	nPages := len(pw.pages)
 	// Object ids: 1 catalog, 2 pages, then per page: page obj (3+2i),
 	// content obj (4+2i), font at the end.

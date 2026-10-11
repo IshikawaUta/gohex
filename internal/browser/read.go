@@ -52,7 +52,7 @@ func openRead(path string) (*sqlite.DB, error) {
 func tableFor(db *sqlite.DB, name string) (*sqlite.Table, error) {
 	t, err := db.Table(name)
 	if err != nil {
-		return nil, fmt.Errorf("%w %s: %v", errTableMissing, name, err)
+		return nil, fmt.Errorf("%w %s: %w", errTableMissing, name, err)
 	}
 	return t, nil
 }

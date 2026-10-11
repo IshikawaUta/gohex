@@ -146,8 +146,10 @@ func TestReadChromiumPartialSchema(t *testing.T) {
 }
 
 func TestReadFirefox(t *testing.T) {
-	p := Profile{Browser: Firefox, Name: "abcd1234.default-release",
-		Dir: fixture("firefox", "abcd1234.default-release")}
+	p := Profile{
+		Browser: Firefox, Name: "abcd1234.default-release",
+		Dir: fixture("firefox", "abcd1234.default-release"),
+	}
 	r := mustRead(t, p)
 
 	wantHistory := []struct {

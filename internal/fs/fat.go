@@ -231,7 +231,7 @@ func (f *fatFS) clusterOff(clus uint32) int64 {
 
 // maxChain bounds chain walks by the volume capacity.
 func (f *fatFS) maxChain() int64 {
-	return int64(f.r.size/f.clusBytes) + 8
+	return f.r.size/f.clusBytes + 8
 }
 
 // dirData reads the raw contents of a directory. firstClus==0 selects the

@@ -182,7 +182,7 @@ func Open(path string) (*Case, error) {
 	}
 	var c Case
 	if err := json.Unmarshal(b, &c); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrNotCase, err)
+		return nil, fmt.Errorf("%w: %w", ErrNotCase, err)
 	}
 	if c.SchemaVersion == 0 {
 		return nil, ErrNotCase

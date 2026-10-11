@@ -124,10 +124,9 @@ type ewfChunk struct {
 type ewfSegment struct {
 	f         *os.File
 	fileSize  int64
-	term      string // terminator section: "done", "next" or "incomplete"
-	secBig    bool   // section descriptor byte order
-	dataStart int64  // start of the section holding this segment's chunks
-	dataEnd   int64  // end of that section
+	secBig    bool  // section descriptor byte order
+	dataStart int64 // start of the section holding this segment's chunks
+	dataEnd   int64 // end of that section
 }
 
 // ewfReader reads a multi-segment EWF (.E01) or logical (.L01) image
@@ -172,7 +171,7 @@ func (e *ewfReader) parseFrom(path string) error {
 	hdr, herr := ewfReadFileHeader(probe)
 	probe.Close()
 	if herr != nil {
-		return fmt.Errorf("image/ewf: %s: %v", base, herr)
+		return fmt.Errorf("image/ewf: %s: %w", base, herr)
 	}
 
 	notFirst := hdr.claim >= 2 && hdr.claimBE >= 2
@@ -234,7 +233,7 @@ func (e *ewfReader) parseSegment(path string, pos int) (*ewfSegment, string, err
 		f.Close()
 		return nil, "", err
 	}
-	wrap := func(err error) error { return fmt.Errorf("image/ewf: %s: %v", base, err) }
+	wrap := func(err error) error { return fmt.Errorf("image/ewf: %s: %w", base, err) }
 
 	st, err := f.Stat()
 	if err != nil {

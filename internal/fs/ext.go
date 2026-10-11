@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -227,7 +228,6 @@ func (e *extFS) extentTree(node []byte, depth int) ([]extBlock, error) {
 			logical := int64(le32(ent, 0))
 			length := int64(le16(ent, 4))
 			if length&0x8000 != 0 { // uninitialized extent: zero-fill
-				length &^= 0x8000
 				continue
 			}
 			phys := uint64(le16(ent, 6))<<32 | uint64(le32(ent, 8))
@@ -280,7 +280,7 @@ func (e *extFS) indirectTree(b []byte, depth int, logical int64, size int64) ([]
 			return out, err
 		}
 		// Span covered by this indirection level: block * per^(level+1).
-		per := int64(e.block / 4)
+		per := e.block / 4
 		span := e.block
 		for d := 0; d <= i-12; d++ {
 			span *= per
@@ -301,7 +301,7 @@ func (e *extFS) walkIndirect(phys uint64, depth int, base int64, size int64, out
 	if err := e.readBlock(buf, phys); err != nil {
 		return fmt.Errorf("fs/ext: read indirect block: %w", err)
 	}
-	per := int64(e.block / 4)
+	per := e.block / 4
 	// Bytes covered by one pointer at this depth.
 	span := e.block
 	for d := 0; d < depth; d++ {
@@ -411,7 +411,7 @@ func (e *extFS) readDir(n extInode) ([]extDirEnt, error) {
 		return nil, nil
 	}
 	buf := make([]byte, n.size)
-	if _, err := e.readAt(n, 0, buf); err != nil && err != io.EOF {
+	if _, err := e.readAt(n, 0, buf); err != nil && !errors.Is(err, io.EOF) {
 		return nil, err
 	}
 	var out []extDirEnt

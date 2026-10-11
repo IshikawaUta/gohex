@@ -2,6 +2,7 @@ package hex
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -41,7 +42,7 @@ func TestDocumentReadBasics(t *testing.T) {
 		t.Fatalf("ReadCopy = %q, %v", got, err)
 	}
 	buf := make([]byte, 10)
-	if n, err := d.ReadAt(buf, int64(len(data))-3); n != 3 || err != io.EOF {
+	if n, err := d.ReadAt(buf, int64(len(data))-3); n != 3 || !errors.Is(err, io.EOF) {
 		t.Fatalf("tail ReadAt n=%d err=%v", n, err)
 	}
 	if _, err := d.ReadCopy(int64(len(data)), 1); err == nil {

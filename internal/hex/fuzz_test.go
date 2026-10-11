@@ -44,9 +44,9 @@ func FuzzPatternCompile(f *testing.F) {
 			return
 		}
 		hay := &memStream{data: []byte("hello needle world " + pattern + "\x00\xffhello")}
-		_, _ = FindAll(hay, p, 0, int64(hay.Size()), 16)
+		_, _ = FindAll(hay, p, 0, hay.Size(), 16)
 		_, _ = FindNext(hay, p, 0)
-		_, _ = FindPrev(hay, p, int64(hay.Size()), 0)
+		_, _ = FindPrev(hay, p, hay.Size(), 0)
 	})
 }
 

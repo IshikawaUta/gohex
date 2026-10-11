@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -142,7 +143,7 @@ func (e *isoFS) parseDir(d isoDir) ([]isoEntry, error) {
 		return nil, nil
 	}
 	buf := make([]byte, d.size)
-	if _, err := e.r.ReadAt(buf, d.extent); err != nil && err != io.EOF {
+	if _, err := e.r.ReadAt(buf, d.extent); err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("fs/iso: read dir: %w", err)
 	}
 	var out []isoEntry

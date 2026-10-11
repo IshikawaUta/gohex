@@ -31,10 +31,14 @@ func sampleCase(t *testing.T) *Case {
 		t.Fatal(err)
 	}
 	for _, e := range []Event{
-		{Time: time.Date(2024, 3, 4, 3, 5, 0, 0, time.UTC), Source: "browser:Chrome",
-			Kind: EventVisit, Summary: "https://example.test/stage", EvidenceID: "e-001"},
-		{Time: time.Date(2024, 3, 4, 2, 0, 0, 0, time.UTC), Source: "carve",
-			Kind: EventCarve, Summary: "recovered photo.jpg"},
+		{
+			Time: time.Date(2024, 3, 4, 3, 5, 0, 0, time.UTC), Source: "browser:Chrome",
+			Kind: EventVisit, Summary: "https://example.test/stage", EvidenceID: "e-001",
+		},
+		{
+			Time: time.Date(2024, 3, 4, 2, 0, 0, 0, time.UTC), Source: "carve",
+			Kind: EventCarve, Summary: "recovered photo.jpg",
+		},
 		{Kind: EventManual, Summary: "examiner note, time unknown"},
 	} {
 		if err := c.AddEvent(e); err != nil {
