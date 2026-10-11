@@ -438,6 +438,13 @@
       </div>
     </div>
 
+    <p class="intro">
+      Manage a forensic case: track evidence items (with chain-of-custody
+      notes), record findings, build a timeline, then generate reports
+      (PDF/DOCX/JSON, optionally Bates-numbered). Cases are stored in their
+      own case file and never touch the evidence itself.
+    </p>
+
     <div class="options">
       <label class="field grow">
         <span>Name</span>
@@ -762,6 +769,13 @@
   .head-actions {
     display: flex;
     gap: 8px;
+  }
+
+  .intro {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-dim);
   }
 
   h2 {

@@ -404,6 +404,24 @@
       <button class="primary" onclick={choose}>Open image…</button>
     </div>
 
+    <p class="intro">
+      Probe a disk image (detected by magic bytes, not the extension), inspect
+      its partition table, then browse any recognised file system read-only —
+      NTFS, FAT/exFAT, APFS/HFS+, EXT2-4, XFS and Btrfs. Files can be
+      previewed, exported with a SHA-256 receipt, opened straight in the hex
+      viewer, or the whole volume mounted read-only via FUSE (Linux). NTFS
+      alternate data streams are listed separately, and the Clone panel makes
+      verified forensic copies with compression, resume and bad-sector logging.
+    </p>
+
+    {#if !image && !busy}
+      <p class="empty">
+        No image loaded yet — click <strong>Open image…</strong> to pick a
+        raw/dd, E01/Ex01/L01, VHD, QCOW2, VMDK or VHDX file. Nothing is ever
+        written back to the evidence.
+      </p>
+    {/if}
+
     {#if image}
       <p class="meta">
         <span class="mono path">{image.path}</span>
@@ -684,6 +702,23 @@
     margin: 0;
     font-size: 18px;
     letter-spacing: 0.02em;
+  }
+
+  .intro {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+
+  .empty {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-dim);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
   }
 
   .meta {

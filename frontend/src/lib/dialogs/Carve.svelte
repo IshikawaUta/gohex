@@ -194,6 +194,15 @@
       <button class="primary" onclick={choose}>Open image…</button>
     </div>
 
+    <p class="intro">
+      Recover ("carve") files out of a disk image by scanning for embedded
+      headers and footers — JPEG, PNG, GIF, TIFF, WebP, HEIC, BMP, PDF, ZIP,
+      OOXML and OLE documents, WAV/AVI/MP4 and more. Set the byte range and
+      the signature set, run a scan, then preview and export hits (each
+      export comes with a SHA-256 receipt). The source image is never
+      modified.
+    </p>
+
     {#if path}
       <p class="meta"><span class="mono path">{path}</span></p>
     {/if}
@@ -336,6 +345,13 @@
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 10px;
+  }
+
+  .intro {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-dim);
   }
 
   h2 {

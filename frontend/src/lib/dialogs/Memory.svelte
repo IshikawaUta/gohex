@@ -254,6 +254,15 @@
       <button class="primary" onclick={choose}>Open capture…</button>
     </div>
 
+    <p class="intro">
+      Analyse memory captures and crash dumps read-only: LiME and AVML RAM
+      captures, Linux ELF core dumps, Windows minidumps and 64-bit crash
+      dumps (auto-detected by magic bytes). Inspect the address-segment map,
+      threads and registers, exception or bugcheck codes, walk stacks, and
+      compare the loaded modules of two captures — then open any physical or
+      virtual address range in the hex viewer.
+    </p>
+
     {#if path}
       <p class="meta"><span class="mono path">{path}</span></p>
     {/if}
@@ -547,6 +556,13 @@
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 10px;
+  }
+
+  .intro {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-dim);
   }
 
   h2 {

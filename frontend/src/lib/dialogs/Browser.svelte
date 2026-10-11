@@ -178,6 +178,13 @@
       </div>
     </div>
 
+    <p class="intro">
+      Extract web-browser artifacts from local profiles — Chrome, Chromium,
+      Edge and Firefox. Pick a home directory (defaults to the current user),
+      select a detected profile, then read its visited URLs (history),
+      downloads and bookmark tree. Everything is opened strictly read-only.
+    </p>
+
     <div class="options">
       <label class="field grow">
         <span>Home root</span>
@@ -344,6 +351,13 @@
   .head-actions {
     display: flex;
     gap: 8px;
+  }
+
+  .intro {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-dim);
   }
 
   h2 {
