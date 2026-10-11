@@ -1,11 +1,43 @@
 <script lang="ts">
-  import { store } from "../state.svelte";
+  import { store, flash } from "../state.svelte";
   import * as A from "../actions";
   import { svc } from "../api";
   import type { Preferences } from "../../../bindings/github.com/IshikawaUta/gohex/internal/config/models";
 
   let draft = $state<Preferences | null>(null);
   let defaults = $state<Record<string, string> | null>(null);
+  let defaultsError = $state("");
+  let defaultsLoading = $state(false);
+
+  // Module-level cache: survives dialog remounts so a transient service
+  // failure is retried on the next open/click instead of sticking forever.
+  let defaultsCache: Record<string, string> | null = null;
+  let defaultsInflight: Promise<Record<string, string> | null> | null = null;
+
+  async function loadDefaults(): Promise<Record<string, string> | null> {
+    if (defaultsCache) return defaultsCache;
+    if (defaultsInflight) return defaultsInflight;
+    defaultsLoading = true;
+    defaultsError = "";
+    defaultsInflight = (async () => {
+      try {
+        const d = ((await svc.ShortcutDefaults()) ?? {}) as Record<string, string>;
+        if (Object.keys(d).length === 0) {
+          throw new Error("stock keymap is empty");
+        }
+        defaultsCache = d;
+        defaults = d;
+        return d;
+      } catch (e) {
+        defaultsError = `Could not load stock shortcuts — click Reset to retry. (${e instanceof Error ? e.message : String(e)})`;
+        return null;
+      } finally {
+        defaultsLoading = false;
+        defaultsInflight = null;
+      }
+    })();
+    return defaultsInflight;
+  }
 
   $effect(() => {
     if (store.showPrefs && store.prefs && !draft) {
@@ -15,9 +47,12 @@
     if (!store.showPrefs) draft = null;
   });
 
-  svc.ShortcutDefaults()
-    .then((d) => (defaults = (d as Record<string, string>) ?? {}))
-    .catch(() => (defaults = {}));
+  $effect(() => {
+    // Reactive deps: store.showPrefs, defaultsCache. defaultsInflight is a
+    // plain (non-reactive) guard, so a failed load does not re-trigger the
+    // effect in a retry loop — Reset clicks retry explicitly.
+    if (store.showPrefs && !defaultsCache && !defaultsInflight) void loadDefaults();
+  });
 
   const profiles: Record<string, string> = {
     analyst: "Analyst — edit documents, save to new files",
@@ -31,12 +66,15 @@
     "file.new": "New document",
     "file.save": "Save",
     "file.saveAs": "Save As",
+    "file.exportView": "Export view",
     "edit.undo": "Undo",
     "edit.redo": "Redo",
     "edit.cut": "Cut",
     "edit.copy": "Copy (hex)",
     "edit.copyText": "Copy (text)",
     "edit.paste": "Paste",
+    "edit.insert": "Insert bytes",
+    "edit.fill": "Fill selection",
     "edit.selectAll": "Select all",
     "search.find": "Find",
     "search.replace": "Replace",
@@ -61,10 +99,13 @@
     draft = draft; // trigger rune reactivity on the nested map
   }
 
-  function resetShortcuts(): void {
-    if (!draft || !defaults) return;
-    draft.shortcuts = { ...defaults };
+  async function resetShortcuts(): Promise<void> {
+    if (!draft) return;
+    const d = await loadDefaults();
+    if (!d) return; // loadDefaults already surfaced defaultsError
+    draft.shortcuts = { ...d };
     draft = draft;
+    flash("Shortcuts reset to defaults — click Save to apply");
   }
 
   async function save(): Promise<void> {
@@ -137,8 +178,13 @@
 
       <div class="shortcuts-head">
         <h3>Keyboard shortcuts</h3>
-        <button onclick={resetShortcuts} disabled={!defaults}>Reset to defaults</button>
+        <button onclick={resetShortcuts} disabled={!draft}>
+          {defaultsLoading ? "Loading…" : "Reset to defaults"}
+        </button>
       </div>
+      {#if defaultsError}
+        <p class="error-wide">{defaultsError}</p>
+      {/if}
       <p class="hint-wide">
         Chords are <span class="mono">Ctrl+Alt+Shift+Key</span> (aliases Control/Cmd/Option
         accepted). Leave a field empty to unbind. Invalid or duplicate chords are
@@ -226,6 +272,13 @@
   .hint-wide {
     margin: 4px 0 10px;
     color: var(--text-dim);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+
+  .error-wide {
+    margin: 4px 0 10px;
+    color: var(--err, #e5484d);
     font-size: 11.5px;
     line-height: 1.45;
   }
