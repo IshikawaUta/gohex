@@ -1,6 +1,6 @@
 module github.com/IshikawaUta/gohex
 
-go 1.25.5
+go 1.26.9
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0
