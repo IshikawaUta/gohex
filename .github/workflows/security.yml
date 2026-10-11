@@ -27,6 +27,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libgtk-4-dev libwebkitgtk-6.0-dev pkg-config
+      # main.go embeds frontend/dist; package main fails to typecheck
+      # without it. A placeholder file satisfies the embed — the lint
+      # job never serves the UI, it only needs the package to load.
+      - name: Satisfy //go:embed frontend/dist
+        run: |
+          mkdir -p frontend/dist
+          echo placeholder > frontend/dist/index.html
       # Build the linter from source with the runner's toolchain: the
       # prebuilt v1.64 binaries are compiled with go1.24 and refuse to
       # load modules targeting go1.25.
@@ -44,6 +51,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+      - name: Satisfy //go:embed frontend/dist
+        run: |
+          mkdir -p frontend/dist
+          echo placeholder > frontend/dist/index.html
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: Run govulncheck
