@@ -929,13 +929,14 @@ export function Undo(id: number): $CancellablePromise<string> {
 /**
  * UpdateCheck probes the GoHex GitHub releases for a newer version.
  * 
- * GoHex makes no outbound connections by default (docs/legal.md): the
- * probe only runs when the examiner opts in with GOHEX_UPDATE_CHECK=1.
- * When disabled — the default — the call is local and returns immediately
- * with Result.Error explaining why. A failed probe (offline, server error)
+ * The probe runs when the examiner presses "Check for updates" in the
+ * About dialog — that explicit click is the consent, and no automatic
+ * background check exists. GOHEX_UPDATE_CHECK=0 hard-disables the probe
+ * for sealed labs; the refusal is local and returns immediately with
+ * Result.Error explaining why. A failed probe (offline, server error)
  * is reported in Result.Error too, never as a Go error: an update check
- * must not be able to break anything else. Enabled runs are recorded in
- * the audit log.
+ * must not be able to break anything else. Every run is recorded in the
+ * audit log.
  */
 export function UpdateCheck(): $CancellablePromise<update$0.Result> {
     return $Call.ByID(1667247785);
@@ -943,13 +944,14 @@ export function UpdateCheck(): $CancellablePromise<update$0.Result> {
 
 /**
  * UpdateDownload fetches a release asset and verifies it against the
- * SHA-256 the release published. The same opt-in gate as UpdateCheck
- * applies (GOHEX_UPDATE_CHECK=1); nothing is downloaded otherwise. The
- * asset lands at dstPath only when the digest matches — a mismatch
- * deletes the partial file and reports a Go error, because a corrupted
- * binary is a fault, not information. GoHex never executes the download:
- * installing and launching an update stays a manual, examiner-controlled
- * step. Every attempt, success or failure, is audited.
+ * SHA-256 the release published. Like UpdateCheck it is user-initiated
+ * (the examiner pastes the URL and digest in the About dialog) and only
+ * hard-disabled by GOHEX_UPDATE_CHECK=0. The asset lands at dstPath only
+ * when the digest matches — a mismatch deletes the partial file and
+ * reports a Go error, because a corrupted binary is a fault, not
+ * information. GoHex never executes the download: installing and
+ * launching an update stays a manual, examiner-controlled step. Every
+ * attempt, success or failure, is audited.
  */
 export function UpdateDownload(url: string, wantSHA256: string, dstPath: string): $CancellablePromise<$models.UpdateDownloadResult> {
     return $Call.ByID(3464761779, url, wantSHA256, dstPath);

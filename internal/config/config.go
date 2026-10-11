@@ -55,7 +55,7 @@ type Preferences struct {
 	AllowUnsafeWrite bool   `json:"allowUnsafeWrite"` // default false; CLI flag ALSO required
 	AuditLogPath     string `json:"auditLogPath"`
 	AuditLogEncrypt  bool   `json:"auditLogEncrypt"`  // passphrase stored out-of-band, never here
-	UpdateCheck      bool   `json:"updateCheck"`      // opt-in, default false
+	UpdateCheck      bool   `json:"updateCheck"`      // records GOHEX_UPDATE_CHECK=1 (informational; the service allows explicit clicks by default and refuses only on =0)
 	TelemetryConsent bool   `json:"telemetryConsent"` // opt-in, default false; no backend yet
 	SandboxMode      bool   `json:"sandboxMode"`      // simulate writes without touching disk
 
@@ -306,7 +306,7 @@ func (p *Preferences) AddRecent(path string) {
 
 // ApplyEnv overlays GOHEX_* environment variables (documented in
 // docs/user-guide.md): GOHEX_THEME, GOHEX_LANG, GOHEX_PROFILE,
-// GOHEX_ALLOW_UNSAFE_WRITE=1, GOHEX_UPDATE_CHECK=1.
+// GOHEX_ALLOW_UNSAFE_WRITE=1, GOHEX_UPDATE_CHECK=0|1.
 func (p *Preferences) ApplyEnv() {
 	if v := os.Getenv("GOHEX_THEME"); v != "" {
 		p.Theme = Theme(v)

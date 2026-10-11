@@ -348,11 +348,13 @@ values.
 ### Update check
 
 `internal/update` probes the GitHub "latest release" endpoint for a newer
-GoHex version. It is strictly opt-in (`GOHEX_UPDATE_CHECK=1`; see
-[legal.md](legal.md) — no outbound connections by default), and every
-failure mode is soft data: an unreachable server, an HTTP error, a
-malformed or oversized response lands in `Result.Error`, never as a Go
-error or a panic. Version ordering is a small numeric-segment comparator
+GoHex version. The probe runs only on the About dialog's explicit "Check for
+updates" click — there is no automatic background check — and sealed labs can
+hard-disable even that click with `GOHEX_UPDATE_CHECK=0` (see
+[legal.md](legal.md)); every failure mode is soft data: an unreachable
+server, an HTTP error, a malformed or oversized response lands in
+`Result.Error`, never as a Go error or a panic. Version ordering is a small
+numeric-segment comparator
 with prerelease precedence (`1.0.0 > 1.0.0-rc2 > 1.0.0-rc1`, build
 metadata ignored). The service audits enabled probes; disabled checks are
 local and unaudited. `GOHEX_UPDATE_URL` overrides the endpoint for mirrors
@@ -446,8 +448,9 @@ with the read-only `gohex` capability module, the service exposes it as
 `ScriptRun`, and the GUI gained a Script panel. Structure templates
 (`internal/template`) followed the same shape: a strict parser, an
 all-or-nothing apply and a GUI Template panel. The opt-in update check
-(`internal/update`) brought soft failures and audited probes with no
-outbound connection unless `GOHEX_UPDATE_CHECK=1`, and the keymap engine
+(`internal/update`) brought soft failures and audited probes that run only
+on the About dialog's explicit click (hard-disable with
+`GOHEX_UPDATE_CHECK=0`), and the keymap engine
 (`internal/keymap`) made the shortcut map a validated, editable
 configuration instead of hard-coded key handlers. The final stage-5 slice
 closed the roadmap: the crash-report parsers (`internal/dump`) finished

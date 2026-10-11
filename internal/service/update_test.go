@@ -14,21 +14,21 @@ import (
 	"github.com/IshikawaUta/gohex/internal/audit"
 )
 
-func TestUpdateCheckDisabledByDefault(t *testing.T) {
+func TestUpdateCheckHardDisabled(t *testing.T) {
 	app := newTestApp(t)
-	t.Setenv("GOHEX_UPDATE_CHECK", "")
+	t.Setenv("GOHEX_UPDATE_CHECK", "0")
 	res, err := app.UpdateCheck()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Available || !strings.Contains(res.Error, "GOHEX_UPDATE_CHECK") {
+	if res.Available || !strings.Contains(res.Error, "GOHEX_UPDATE_CHECK=0") {
 		t.Errorf("res = %+v, want disabled result", res)
 	}
 	if res.Current == "" {
 		t.Error("Current empty")
 	}
 
-	// No audit record and no network for a disabled check.
+	// No audit record and no network for a hard-disabled check.
 	events, err := audit.ReadAll(app.log.Path(), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -40,13 +40,13 @@ func TestUpdateCheckDisabledByDefault(t *testing.T) {
 	}
 }
 
-func TestUpdateCheckEnabled(t *testing.T) {
+func TestUpdateCheckDefaultOn(t *testing.T) {
 	app := newTestApp(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"tag_name":"v99.0.0","html_url":"https://example.com/rel","body":"notes"}`))
 	}))
 	t.Cleanup(srv.Close)
-	t.Setenv("GOHEX_UPDATE_CHECK", "1")
+	t.Setenv("GOHEX_UPDATE_CHECK", "")
 	t.Setenv("GOHEX_UPDATE_URL", srv.URL)
 
 	res, err := app.UpdateCheck()
@@ -75,7 +75,7 @@ func TestUpdateCheckEnabled(t *testing.T) {
 
 func TestUpdateCheckProbeFailureIsSoft(t *testing.T) {
 	app := newTestApp(t)
-	t.Setenv("GOHEX_UPDATE_CHECK", "1")
+	t.Setenv("GOHEX_UPDATE_CHECK", "")
 	t.Setenv("GOHEX_UPDATE_URL", "http://127.0.0.1:1") // nothing listens here
 
 	res, err := app.UpdateCheck()
@@ -100,12 +100,12 @@ func TestUpdateCheckProbeFailureIsSoft(t *testing.T) {
 	}
 }
 
-func TestUpdateDownloadDisabledByDefault(t *testing.T) {
+func TestUpdateDownloadHardDisabled(t *testing.T) {
 	app := newTestApp(t)
-	t.Setenv("GOHEX_UPDATE_CHECK", "")
+	t.Setenv("GOHEX_UPDATE_CHECK", "0")
 	dst := filepath.Join(t.TempDir(), "asset.bin")
 	if _, err := app.UpdateDownload("http://example.invalid/a", strings.Repeat("ab", 32), dst); err == nil {
-		t.Fatal("download must be refused when the opt-in gate is closed")
+		t.Fatal("download must be refused when GOHEX_UPDATE_CHECK=0")
 	}
 	if _, err := os.Stat(dst); !os.IsNotExist(err) {
 		t.Errorf("disabled download created %s", dst)
@@ -121,7 +121,7 @@ func TestUpdateDownloadVerifiesDigest(t *testing.T) {
 		_, _ = w.Write(payload)
 	}))
 	t.Cleanup(srv.Close)
-	t.Setenv("GOHEX_UPDATE_CHECK", "1")
+	t.Setenv("GOHEX_UPDATE_CHECK", "")
 
 	dir := t.TempDir()
 	dst := filepath.Join(dir, "asset.bin")

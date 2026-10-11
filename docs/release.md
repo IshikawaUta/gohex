@@ -101,7 +101,7 @@ wails3 task darwin:package:dmg             # styled .dmg (on macOS)
    notes.
 4. Tag `vX.Y.Z` and push; release CI builds the artifacts, checksums and
    the optional signature above.
-5. With `GOHEX_UPDATE_CHECK=1`, the About panel's update check should
+5. The About panel's update check (no env needed — explicit click) should
    report the new version.
 6. Verify on a clean machine: install → first-run disclaimer → open a
    sample → hash matches → save in sandbox mode.

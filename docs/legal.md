@@ -39,8 +39,11 @@ declined, and a PR introducing them will be rejected. See
 
 ## No telemetry, no default network access
 
-Stage 1 makes **no outbound connections by default**. The update checker is
-opt-in and off by default (`GOHEX_UPDATE_CHECK=1` enables it).
+Stage 1 makes **no automatic outbound connections**. Checking for updates
+happens only when you press **Check for updates** in the About dialog (and a
+download only after you paste the asset URL and its published SHA-256 — the
+file is verified and never executed). Both explicit actions can be
+hard-disabled for sealed labs with `GOHEX_UPDATE_CHECK=0`.
 
 ## Ethics notices
 

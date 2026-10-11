@@ -44,7 +44,7 @@ export interface Preferences {
     "auditLogEncrypt": boolean;
 
     /**
-     * opt-in, default false
+     * records GOHEX_UPDATE_CHECK=1 (informational; the service allows explicit clicks by default and refuses only on =0)
      */
     "updateCheck": boolean;
 
