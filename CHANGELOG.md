@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is [S
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-11
+
+First public release.
+
 ### Added
 
 - **Fuzzing & benchmarks**: 12 fuzz targets across parser packages
