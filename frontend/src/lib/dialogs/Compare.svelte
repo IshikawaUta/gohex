@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store, flash } from "../state.svelte";
   import { svc, errMsg } from "../api";
+  import * as A from "../actions";
   import type { Result } from "../../../bindings/github.com/IshikawaUta/gohex/internal/compare/models";
   import { fmtOffsetHex, fmtSize } from "../format";
 
@@ -23,6 +24,9 @@
 
   $effect(() => {
     if (store.showCompare) {
+      // Re-fetch the document list so a doc opened/closed since the last
+      // docs:changed event cannot leave the dropdowns stale/empty.
+      void A.refreshDocs().catch(() => {});
       const docs = store.docs;
       if (pickA === null && docs.length > 0) pickA = docs[0].id;
       if (pickB === null && docs.length > 1) pickB = docs[1].id;
@@ -122,10 +126,26 @@
       ⇔ sync to reveal a difference in BOTH documents at once.
     </p>
 
+    {#if store.docs.length === 0}
+      <p class="empty">
+        No documents are open. Open at least two files first
+        (<span class="mono">Ctrl+O</span> or File → Open), then come back here:
+        A is the reference, B/C/D pick the partners to compare it against.
+      </p>
+    {:else if store.docs.length === 1}
+      <p class="empty">
+        Only <strong>{store.docs[0].name}</strong> is open — open one more file
+        (<span class="mono">Ctrl+O</span>) to have something to compare it against.
+      </p>
+    {/if}
+
     <div class="picks">
       <label>
         A (reference)
-        <select bind:value={pickA} disabled={busy}>
+        <select bind:value={pickA} disabled={busy || store.docs.length === 0}>
+          {#if store.docs.length === 0}
+            <option value={null}>(no documents open)</option>
+          {/if}
           {#each store.docs as d (d.id)}
             <option value={d.id}>{d.name}</option>
           {/each}
@@ -133,7 +153,7 @@
       </label>
       <label>
         B
-        <select bind:value={pickB} disabled={busy}>
+        <select bind:value={pickB} disabled={busy || store.docs.length === 0}>
           <option value={null}>— none —</option>
           {#each store.docs as d (d.id)}
             <option value={d.id}>{d.name}</option>
@@ -142,7 +162,7 @@
       </label>
       <label>
         C
-        <select bind:value={pickC} disabled={busy}>
+        <select bind:value={pickC} disabled={busy || store.docs.length === 0}>
           <option value={null}>— none —</option>
           {#each store.docs as d (d.id)}
             <option value={d.id}>{d.name}</option>
@@ -151,7 +171,7 @@
       </label>
       <label>
         D
-        <select bind:value={pickD} disabled={busy}>
+        <select bind:value={pickD} disabled={busy || store.docs.length === 0}>
           <option value={null}>— none —</option>
           {#each store.docs as d (d.id)}
             <option value={d.id}>{d.name}</option>
@@ -332,6 +352,20 @@
     margin: 0 0 10px;
     font-size: 12.5px;
     color: #e0b07b;
+  }
+
+  .empty {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-dim);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+  }
+
+  .empty .mono {
+    font-family: var(--font-mono);
   }
 
   .pairtabs {
