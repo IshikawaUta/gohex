@@ -29,7 +29,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
+            libgtk-4-dev libwebkitgtk-6.0-dev pkg-config
 
       # Fixture tooling: the disk/filesystem tests build their own images with
       # mkfs.ext2/debugfs (e2fsprogs), mkfs.fat (dosfstools), mkntfs/ntfscp/
@@ -45,6 +45,16 @@ jobs:
           for t in debugfs mkfs.ext2 mkfs.fat mkntfs ntfscp ntfsls mkfs.exfat genisoimage; do
             command -v "$t" >/dev/null || { echo "missing required fixture tool: $t"; exit 1; }
           done
+
+      # main.go embeds frontend/dist (//go:embed all:frontend/dist), so the
+      # frontend must be built before any step that compiles package main —
+      # go vet ./..., go test ./... ., and the bindings regeneration below.
+      - name: Frontend type-check + production build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run check
+          npm run build
 
       - name: go mod tidy is clean
         run: |
@@ -64,13 +74,6 @@ jobs:
           total="$(tail -1 cover.txt | awk '{gsub("%","",$NF); print $NF}')"
           echo "Total coverage: ${total}%"
           awk -v t="$total" 'BEGIN { exit !(t >= 80.0) }'
-
-      - name: Frontend type-check + production build
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run check
-          npm run build
 
       - name: Bindings are regenerated & committed
         run: |
@@ -144,12 +147,12 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Linux dependencies (GTK/WebKit/Xvfb)
+      - name: Linux dependencies (GTK4/WebKitGTK-6/Xvfb)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config xvfb
+            libgtk-4-dev libwebkitgtk-6.0-dev pkg-config xvfb
 
       - name: Windows dependencies (MinGW-w64)
         if: runner.os == 'Windows'
